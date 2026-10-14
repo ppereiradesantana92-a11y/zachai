@@ -63,6 +63,19 @@ async function generateMultimodalContent(params: {
   throw lastErr;
 }
 
+// Route to download production build ZIP for Cloudflare Pages
+app.get(['/download/zachai-dist.zip', '/api/download/zachai-dist.zip'], (_req, res) => {
+  const zipPath = path.resolve(__dirname, 'zachai-dist.zip');
+  res.download(zipPath, 'zachai-dist.zip', (err) => {
+    if (err) {
+      console.error('[Download ZIP Error]', err);
+      if (!res.headersSent) {
+        res.status(404).send('Arquivo ZIP de produção ainda não gerado. Execute o build.');
+      }
+    }
+  });
+});
+
 // API Route: Alex Error Diagnosis (Multimodal with images / screenshots)
 app.post('/api/alex/diagnose', async (req, res) => {
   try {
