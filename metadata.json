@@ -1,0 +1,6 @@
+{
+  "name": "ZachAI - Assistente de Programação",
+  "description": "Assistente de programação futurista e profissional para criar aplicações, analisar código e corrigir erros com precisão.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
