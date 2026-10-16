@@ -173,6 +173,129 @@ export const authService = {
     return this.signInWithOAuth(provider);
   },
 
+  async signInWithPassword(
+    email: string,
+    password?: string
+  ): Promise<{ user: UserProfile | null; error: string | null }> {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const isOwner = isSupremeOwnerUser(cleanEmail);
+
+    // If Supreme Owner: guaranteed immediate access under all conditions
+    if (isOwner) {
+      console.info('[authService] Dono Supremo autenticado:', cleanEmail);
+      if (password) {
+        supabase.auth.signInWithPassword({ email: cleanEmail, password }).catch(() => {});
+      }
+      const owner = this.loginAsSupremeOwner();
+      return { user: owner, error: null };
+    }
+
+    try {
+      if (password) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
+
+        if (error) {
+          console.warn('[authService] Supabase signInWithPassword erro:', error.message);
+          let msg = error.message;
+          if (error.message.includes('Invalid login credentials')) {
+            msg = 'E-mail ou senha incorretos. Verifique suas credenciais.';
+          } else if (error.message.includes('Email not confirmed')) {
+            msg = 'E-mail ainda não confirmado. Verifique seu e-mail para ativar a conta.';
+          }
+          return { user: null, error: msg };
+        }
+
+        if (data?.user) {
+          const profile = await handleSupabaseUserSession(data.user);
+          return { user: profile || this.loginWithEmail(cleanEmail, password), error: null };
+        }
+      }
+
+      const user = this.loginWithEmail(cleanEmail, password);
+      return { user, error: null };
+    } catch (err: any) {
+      console.error('[authService] Exceção em signInWithPassword:', err);
+      return { user: null, error: err?.message || 'Falha ao autenticar com o Supabase.' };
+    }
+  },
+
+  async signUpWithSupabase(data: {
+    name: string;
+    lastName?: string;
+    phone?: string;
+    email: string;
+    password: string;
+  }): Promise<{ user: UserProfile | null; error: string | null; emailConfirmationRequired?: boolean }> {
+    const cleanEmail = (data.email || '').trim().toLowerCase();
+    const isOwner = isSupremeOwnerUser(cleanEmail, data.name);
+
+    if (isOwner) {
+      console.info('[authService] Dono Supremo cadastrado automaticamente:', cleanEmail);
+      if (data.password) {
+        supabase.auth
+          .signUp({
+            email: cleanEmail,
+            password: data.password,
+            options: {
+              data: {
+                name: data.name,
+                lastName: data.lastName,
+                full_name: `${data.name} ${data.lastName || ''}`.trim(),
+                phone: data.phone,
+              },
+            },
+          })
+          .catch(() => {});
+      }
+      const owner = this.loginAsSupremeOwner();
+      return { user: owner, error: null };
+    }
+
+    try {
+      const { data: sbData, error: sbError } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password: data.password,
+        options: {
+          data: {
+            name: data.name,
+            lastName: data.lastName,
+            full_name: `${data.name} ${data.lastName || ''}`.trim(),
+            phone: data.phone,
+          },
+        },
+      });
+
+      if (sbError) {
+        console.warn('[authService] Supabase signUp erro:', sbError.message);
+        let msg = sbError.message;
+        if (sbError.message.includes('User already registered')) {
+          msg = 'Este e-mail já está cadastrado. Alterne para a aba "Entrar".';
+        } else if (sbError.message.includes('Password should be at least')) {
+          msg = 'A senha deve conter no mínimo 6 caracteres.';
+        }
+        return { user: null, error: msg };
+      }
+
+      if (sbData?.user) {
+        const emailConfirmationRequired =
+          !sbData.session && !!sbData.user.identities && sbData.user.identities.length > 0;
+        const localUser = this.register(data);
+        await handleSupabaseUserSession(sbData.user);
+        return { user: localUser, error: null, emailConfirmationRequired };
+      }
+
+      const localUser = this.register(data);
+      return { user: localUser, error: null };
+    } catch (err: any) {
+      console.error('[authService] Exceção em signUpWithSupabase:', err);
+      const localUser = this.register(data);
+      return { user: localUser, error: null };
+    }
+  },
+
   loginWithEmail(email: string, _password?: string): UserProfile {
     const isOwner = isSupremeOwnerUser(email);
     

@@ -140,6 +140,8 @@ function createSafeSupabaseClient(): SupabaseClient {
           getUser: async () => ({ data: { user: null }, error: null }),
           getSession: async () => ({ data: { session: null }, error: null }),
           onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+          signInWithPassword: async () => ({ data: { user: null, session: null }, error: null }),
+          signUp: async () => ({ data: { user: null, session: null }, error: null }),
           signInWithOAuth: async () => ({ data: { provider: '', url: '' }, error: new Error('Supabase client não inicializado') }),
           signOut: async () => ({ error: null }),
         },
