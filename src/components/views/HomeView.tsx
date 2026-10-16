@@ -342,7 +342,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <span className="rounded bg-gradient-to-r from-amber-500 to-yellow-400 px-1.5 py-0.2 text-[9px] font-black text-slate-950 shadow-sm">DONO SUPREMO</span>
                 </div>
                 <div className="text-[11px] text-amber-200">
-                  Métricas de faturamento, usuários e saque PIX
+                  Métricas de faturamento, clientes reais e gateways
                 </div>
               </div>
             </button>

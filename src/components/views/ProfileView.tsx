@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Trophy,
@@ -20,6 +20,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { INITIAL_USER_PROFILE, UserProfileState, Achievement } from '../../data/userProfileData';
+import { authService, SUPREME_OWNER_EMAIL } from '../../services/authService';
 
 interface ProfileViewProps {
   onNavigateToStudio?: () => void;
@@ -32,8 +33,31 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onNavigateToPractice,
   onNavigateToProjects,
 }) => {
-  const [profile, setProfile] = useState<UserProfileState>(INITIAL_USER_PROFILE);
+  const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
+  const [profile, setProfile] = useState<UserProfileState>({
+    ...INITIAL_USER_PROFILE,
+    name: currentUser.name,
+    title: currentUser.isSupremeOwner ? 'Dono Supremo do Zach AI' : 'Desenvolvedor & Estudante',
+    avatarUrl: currentUser.isSupremeOwner
+      ? 'https://github.com/ppereiradesantana92-a11y.png'
+      : (currentUser.avatar || INITIAL_USER_PROFILE.avatarUrl),
+  });
   const [filterCategory, setFilterCategory] = useState<'all' | 'unlocked' | 'locked'>('all');
+
+  useEffect(() => {
+    const unsub = authService.subscribe((u) => {
+      setCurrentUser(u);
+      setProfile((prev) => ({
+        ...prev,
+        name: u.name,
+        title: u.isSupremeOwner ? 'Dono Supremo do Zach AI' : 'Desenvolvedor & Estudante',
+        avatarUrl: u.isSupremeOwner
+          ? 'https://github.com/ppereiradesantana92-a11y.png'
+          : (u.avatar || prev.avatarUrl),
+      }));
+    });
+    return () => unsub();
+  }, []);
 
   const nextLevelXp = profile.level * 600;
   const currentLevelProgress = Math.min(

@@ -12,10 +12,10 @@ import {
 export const SUPREME_OWNER_EMAIL = 'ppereiradesantana92@gmail.com';
 export const SUPREME_OWNER_NAME = 'Pedro Henrique';
 export const COST_PER_GENERATION = 10;
-export const INITIAL_SIGNUP_BONUS_CREDITS = 300;
+export const INITIAL_SIGNUP_BONUS_CREDITS = 500;
 export const VISITOR_DAILY_FREE_LIMIT = 5; // 5 free generations (50 credits) per 24h
 
-const STORAGE_KEY = 'zach_ai_current_user_profile_v2';
+const STORAGE_KEY = 'zach_ai_current_user_profile_v3';
 const LISTENERS: Array<(user: UserProfile) => void> = [];
 
 export function isSupremeOwnerUser(email: string, name?: string): boolean {
@@ -40,10 +40,10 @@ const DEFAULT_SUPREME_OWNER: UserProfile = {
   phone: '+55 11 98765-4321',
   role: 'supreme_owner',
   isSupremeOwner: true,
-  credits: INITIAL_SYNC_CREDITS, // 290 cr.
-  maxCredits: MAX_SYNC_CREDITS, // 300 cr.
-  totalCreditsUsed: 10,
-  generationsCount: 1,
+  credits: 100000,
+  maxCredits: 100000,
+  totalCreditsUsed: 0,
+  generationsCount: 0,
   subscriptionPlanId: 'annual',
   subscriptionActive: true,
   joinedAt: '2024-01-01T00:00:00.000Z',
@@ -59,10 +59,10 @@ const DEFAULT_REGULAR_USER: UserProfile = {
   phone: '+55 11 99999-8888',
   role: 'user',
   isSupremeOwner: false,
-  credits: INITIAL_SYNC_CREDITS, // 290 cr.
-  maxCredits: MAX_SYNC_CREDITS, // 300 cr.
-  totalCreditsUsed: 10,
-  generationsCount: 1,
+  credits: 500,
+  maxCredits: 500,
+  totalCreditsUsed: 0,
+  generationsCount: 0,
   subscriptionPlanId: 'free',
   subscriptionActive: true,
   joinedAt: new Date().toISOString(),

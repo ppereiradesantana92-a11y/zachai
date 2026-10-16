@@ -77,8 +77,8 @@ export const SUPABASE_ANON_KEY = cleanSupabaseKey(rawEnvKey);
 
 export const SUPREME_OWNER_EMAIL = 'ppereiradesantana92@gmail.com';
 export const SUPREME_OWNER_NAME = 'Pedro Henrique';
-export const INITIAL_SYNC_CREDITS = 290;
-export const MAX_SYNC_CREDITS = 300;
+export const INITIAL_SYNC_CREDITS = 500;
+export const MAX_SYNC_CREDITS = 500;
 
 function safeLocalStorageGet(key: string): string | null {
   try {

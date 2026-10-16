@@ -8,21 +8,22 @@ import {
   CreditCardData,
 } from '../types';
 import { authService, SUPREME_OWNER_EMAIL, SUPREME_OWNER_NAME } from './authService';
+import { paymentGatewayService } from './paymentGatewayService';
 
 export const SUBSCRIPTION_PLANS: CreditPlan[] = [
   {
     id: 'free',
-    name: 'Gratuito (Bônus)',
+    name: 'Gratuito (Bônus de Boas-Vindas)',
     price: 0,
     priceFormatted: 'R$ 0,00',
-    credits: 300,
-    creditsFormatted: '300 créditos',
+    credits: 500,
+    creditsFormatted: '500 créditos',
     billingPeriod: 'Ao criar conta',
     popularBadge: 'INICIANTE',
     features: [
-      '300 créditos grátis de boas-vindas',
+      '500 créditos grátis de boas-vindas',
       'Acesso ao Chat com Alex IA',
-      'Testes e Quizzes práticos',
+      'Testes e Quizzes práticos de programação',
       'Playground Web com Live Preview',
       'Suporte da comunidade ZachAI',
     ],
@@ -63,7 +64,7 @@ export const SUBSCRIPTION_PLANS: CreditPlan[] = [
   },
   {
     id: 'monthly',
-    name: 'Plano Mensal',
+    name: 'Plano Mensal Pro',
     price: 30.4,
     priceFormatted: 'R$ 30,40',
     credits: 15000,
@@ -99,93 +100,14 @@ export const SUBSCRIPTION_PLANS: CreditPlan[] = [
   },
 ];
 
-const TRANSACTIONS_KEY = 'zach_billing_transactions_v2';
-const WITHDRAWALS_KEY = 'zach_billing_withdrawals_v2';
+const TRANSACTIONS_KEY = 'zach_billing_transactions_v3';
+const WITHDRAWALS_KEY = 'zach_billing_withdrawals_v3';
+const MANAGED_USERS_KEY = 'zach_managed_users_v3';
+const INJECTIONS_KEY = 'zach_injections_history_v3';
 
-// Seed initial realistic transactions for Pedro Henrique's ADM Dashboard
-const INITIAL_TRANSACTIONS: PaymentTransaction[] = [
-  {
-    id: 'tx_89412',
-    userId: 'usr_pedro_client_1',
-    userEmail: 'dev.lucas@empresa.com.br',
-    userName: 'Lucas Alcantara',
-    planId: 'annual',
-    planName: 'Plano Anual Supremo',
-    amount: 90.99,
-    creditsAwarded: 100000,
-    method: 'pix',
-    status: 'approved',
-    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-  },
-  {
-    id: 'tx_89413',
-    userId: 'usr_pedro_client_2',
-    userEmail: 'mariana.tech@gmail.com',
-    userName: 'Mariana Duarte',
-    planId: 'monthly',
-    planName: 'Plano Mensal',
-    amount: 30.4,
-    creditsAwarded: 15000,
-    method: 'credit_card',
-    cardLast4: '4242',
-    status: 'approved',
-    createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-  },
-  {
-    id: 'tx_89414',
-    userId: 'usr_pedro_client_3',
-    userEmail: 'gabriel.costa@outlook.com',
-    userName: 'Gabriel Costa',
-    planId: 'weekly',
-    planName: 'Plano Semanal',
-    amount: 10.8,
-    creditsAwarded: 3500,
-    method: 'pix',
-    status: 'approved',
-    createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
-  },
-  {
-    id: 'tx_89415',
-    userId: 'usr_pedro_client_4',
-    userEmail: 'carla.startup@dev.io',
-    userName: 'Carla Silveira',
-    planId: 'daily',
-    planName: 'Plano Diário',
-    amount: 5.8,
-    creditsAwarded: 300,
-    method: 'debit_card',
-    cardLast4: '8821',
-    status: 'approved',
-    createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-  },
-  {
-    id: 'tx_89416',
-    userId: 'usr_pedro_client_5',
-    userEmail: 'rodrigo.eng@gmail.com',
-    userName: 'Rodrigo Medeiros',
-    planId: 'monthly',
-    planName: 'Plano Mensal',
-    amount: 30.4,
-    creditsAwarded: 15000,
-    method: 'pix',
-    status: 'approved',
-    createdAt: new Date(Date.now() - 3600000 * 36).toISOString(),
-  },
-];
-
-const INITIAL_WITHDRAWALS: WithdrawalRequest[] = [
-  {
-    id: 'wth_001',
-    requestedBy: SUPREME_OWNER_NAME,
-    amount: 150.0,
-    pixKeyType: 'email',
-    pixKey: SUPREME_OWNER_EMAIL,
-    status: 'completed',
-    requestedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    completedAt: new Date(Date.now() - 86400000 * 3 + 300000).toISOString(),
-    transactionCode: 'PIX-E00416999202610110901',
-  },
-];
+// Limpeza total: Inicialização com zero transações fictícias
+const INITIAL_TRANSACTIONS: PaymentTransaction[] = [];
+const INITIAL_WITHDRAWALS: WithdrawalRequest[] = [];
 
 export const billingService = {
   getPlans(): CreditPlan[] {
@@ -205,7 +127,6 @@ export const billingService = {
     } catch (e) {
       console.warn('Failed to parse billing transactions', e);
     }
-    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(INITIAL_TRANSACTIONS));
     return INITIAL_TRANSACTIONS;
   },
 
@@ -222,7 +143,6 @@ export const billingService = {
     } catch (e) {
       console.warn('Failed to parse withdrawals', e);
     }
-    localStorage.setItem(WITHDRAWALS_KEY, JSON.stringify(INITIAL_WITHDRAWALS));
     return INITIAL_WITHDRAWALS;
   },
 
@@ -230,67 +150,90 @@ export const billingService = {
     localStorage.setItem(WITHDRAWALS_KEY, JSON.stringify(withdrawals));
   },
 
-  processCheckout(
+  /**
+   * Processa o checkout utilizando a arquitetura oficial do gateway (Asaas / Mercado Pago)
+   */
+  async processCheckout(
     plan: CreditPlan,
     customer: CheckoutCustomerData,
     method: PaymentMethod,
     cardData?: CreditCardData
   ): Promise<PaymentTransaction> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const transactions = this.getTransactions();
-        const txId = `tx_${Date.now().toString().slice(-6)}`;
-        
-        const newTransaction: PaymentTransaction = {
-          id: txId,
-          userId: authService.getCurrentUser().id,
-          userEmail: customer.email || authService.getCurrentUser().email,
-          userName: customer.fullName || authService.getCurrentUser().name,
-          planId: plan.id,
-          planName: plan.name,
-          amount: plan.price,
-          creditsAwarded: plan.credits,
-          method,
-          status: 'approved',
-          createdAt: new Date().toISOString(),
-          cardLast4: cardData?.cardNumber ? cardData.cardNumber.replace(/\s+/g, '').slice(-4) : undefined,
-          pixCode: method === 'pix' ? `00020126580014br.gov.bcb.pix0136${txId}520400005303986540${plan.price.toFixed(2)}5802BR5925Pedro Henrique Santana6009Sao Paulo62070503***6304` : undefined,
-        };
-
-        transactions.unshift(newTransaction);
-        this.saveTransactions(transactions);
-
-        // Add credits to user immediately
-        authService.addCredits(plan.credits, plan.id);
-
-        resolve(newTransaction);
-      }, 1000);
+    const result = await paymentGatewayService.createCheckout({
+      plan,
+      customer: {
+        fullName: customer.fullName,
+        email: customer.email,
+        cpfCnpj: customer.cpf || '00000000000',
+        phone: customer.phone,
+      },
+      method,
+      card: cardData
+        ? {
+            holderName: cardData.cardHolder,
+            number: cardData.cardNumber,
+            expiryMonth: cardData.expiryMonth,
+            expiryYear: cardData.expiryYear,
+            cvv: cardData.cvv,
+            installments: cardData.installments,
+          }
+        : undefined,
     });
+
+    const transactions = this.getTransactions();
+    const newTransaction: PaymentTransaction = {
+      id: result.transactionId,
+      userId: authService.getCurrentUser().id,
+      userEmail: customer.email || authService.getCurrentUser().email,
+      userName: customer.fullName || authService.getCurrentUser().name,
+      planId: plan.id,
+      planName: plan.name,
+      amount: plan.price,
+      creditsAwarded: plan.credits,
+      method,
+      status: result.status === 'approved' ? 'approved' : 'pending',
+      createdAt: new Date().toISOString(),
+      cardLast4: cardData?.cardNumber ? cardData.cardNumber.replace(/\s+/g, '').slice(-4) : undefined,
+      pixCode: result.pixQrCodeText,
+    };
+
+    transactions.unshift(newTransaction);
+    this.saveTransactions(transactions);
+
+    // Concede os créditos reais se a transação foi aprovada
+    if (newTransaction.status === 'approved') {
+      authService.addCredits(plan.credits, plan.id);
+    }
+
+    return newTransaction;
   },
 
+  /**
+   * Métricas reais e transparentes (Zero dados fictícios)
+   */
   getAdminMetrics(): AdminMetrics {
     const transactions = this.getTransactions();
     const withdrawals = this.getWithdrawals();
+    const managedUsers = this.getManagedUsers();
 
-    const totalRevenue = transactions
-      .filter((t) => t.status === 'approved')
-      .reduce((sum, t) => sum + t.amount, 0);
+    const approvedTransactions = transactions.filter((t) => t.status === 'approved');
+    const totalRevenue = approvedTransactions.reduce((sum, t) => sum + t.amount, 0);
 
     const now = Date.now();
     const dayMs = 24 * 3600 * 1000;
     const weekMs = 7 * dayMs;
     const monthMs = 30 * dayMs;
 
-    const dailyRevenue = transactions
-      .filter((t) => t.status === 'approved' && now - new Date(t.createdAt).getTime() <= dayMs)
+    const dailyRevenue = approvedTransactions
+      .filter((t) => now - new Date(t.createdAt).getTime() <= dayMs)
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const weeklyRevenue = transactions
-      .filter((t) => t.status === 'approved' && now - new Date(t.createdAt).getTime() <= weekMs)
+    const weeklyRevenue = approvedTransactions
+      .filter((t) => now - new Date(t.createdAt).getTime() <= weekMs)
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const monthlyRevenue = transactions
-      .filter((t) => t.status === 'approved' && now - new Date(t.createdAt).getTime() <= monthMs)
+    const monthlyRevenue = approvedTransactions
+      .filter((t) => now - new Date(t.createdAt).getTime() <= monthMs)
       .reduce((sum, t) => sum + t.amount, 0);
 
     const totalWithdrawn = withdrawals
@@ -298,12 +241,13 @@ export const billingService = {
       .reduce((sum, w) => sum + w.amount, 0);
 
     const availableBalance = Math.max(0, totalRevenue - totalWithdrawn);
+    const currentUser = authService.getCurrentUser();
 
     return {
-      totalUsers: 1482,
-      activeUsers: 347,
-      totalCreditsUsed: 498200,
-      totalGenerations: 49820,
+      totalUsers: managedUsers.length,
+      activeUsers: managedUsers.filter((u) => u.credits > 0).length,
+      totalCreditsUsed: currentUser.totalCreditsUsed || 0,
+      totalGenerations: currentUser.generationsCount || 0,
       totalRevenue: Number(totalRevenue.toFixed(2)),
       dailyRevenue: Number(dailyRevenue.toFixed(2)),
       weeklyRevenue: Number(weeklyRevenue.toFixed(2)),
@@ -314,9 +258,6 @@ export const billingService = {
     };
   },
 
-  /**
-   * Evaluates if a user is the Supreme Owner and eligible for total credit exemption
-   */
   isSupremeOwner(user?: { email?: string; name?: string; isSupremeOwner?: boolean }): boolean {
     if (!user) return false;
     if (user.isSupremeOwner) return true;
@@ -329,136 +270,68 @@ export const billingService = {
     );
   },
 
-  /**
-   * Check if user has total exemption (0 cost for all actions)
-   */
   isCreditExempt(user?: { email?: string; name?: string; isSupremeOwner?: boolean }): boolean {
     return this.isSupremeOwner(user);
   },
 
   /**
-   * List of managed customer accounts for Pedro Henrique to view and inject credits
+   * Lista de contas reais cadastradas para o Dono Supremo gerenciar (zero clientes fake)
    */
   getManagedUsers(): ManagedUser[] {
-    const defaultList: ManagedUser[] = [
+    const currentUser = authService.getCurrentUser();
+    const isOwner = this.isSupremeOwner(currentUser);
+
+    const baseList: ManagedUser[] = [
       {
-        id: 'usr_pedro_client_1',
-        name: 'Lucas Alcantara',
-        email: 'dev.lucas@empresa.com.br',
-        role: 'user',
-        planName: 'Plano Anual Supremo',
-        credits: 100000,
+        id: isOwner ? 'usr_supreme_pedro_henrique' : currentUser.id,
+        name: isOwner ? SUPREME_OWNER_NAME : currentUser.name,
+        email: isOwner ? SUPREME_OWNER_EMAIL : currentUser.email,
+        role: isOwner ? 'supreme_owner' : currentUser.role,
+        planName: isOwner ? 'Plano Dono Supremo (Ilimitado)' : 'Gratuito (500 créditos)',
+        credits: isOwner ? 100000 : currentUser.credits,
         totalInjected: 0,
-      },
-      {
-        id: 'usr_pedro_client_2',
-        name: 'Mariana Duarte',
-        email: 'mariana.tech@gmail.com',
-        role: 'user',
-        planName: 'Plano Mensal',
-        credits: 15000,
-        totalInjected: 0,
-      },
-      {
-        id: 'usr_pedro_client_3',
-        name: 'Gabriel Costa',
-        email: 'gabriel.costa@outlook.com',
-        role: 'user',
-        planName: 'Plano Semanal',
-        credits: 3500,
-        totalInjected: 0,
-      },
-      {
-        id: 'usr_pedro_client_4',
-        name: 'Carla Silveira',
-        email: 'carla.startup@dev.io',
-        role: 'user',
-        planName: 'Plano Diário',
-        credits: 300,
-        totalInjected: 0,
-      },
-      {
-        id: 'usr_pedro_client_5',
-        name: 'Rodrigo Medeiros',
-        email: 'rodrigo.eng@gmail.com',
-        role: 'user',
-        planName: 'Plano Mensal',
-        credits: 15000,
-        totalInjected: 0,
-      },
-      {
-        id: 'usr_default_student',
-        name: 'Estudante Dev Iniciante',
-        email: 'estudante@zach.ai',
-        role: 'user',
-        planName: 'Gratuito (Bônus)',
-        credits: 290,
-        totalInjected: 0,
-      },
-      {
-        id: 'usr_visitor',
-        name: 'Visitante Não Registrado',
-        email: 'visitante@zach.ai',
-        role: 'visitor',
-        planName: 'Degustação Grátis',
-        credits: 50,
-        totalInjected: 0,
+        isSupremeOwner: isOwner,
       },
     ];
 
     try {
-      const stored = localStorage.getItem('zach_managed_users_list_v2');
+      const stored = localStorage.getItem(MANAGED_USERS_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed: ManagedUser[] = JSON.parse(stored);
+        if (parsed.length > 0) {
+          return parsed;
+        }
       }
     } catch {
       // ignore
     }
 
-    localStorage.setItem('zach_managed_users_list_v2', JSON.stringify(defaultList));
-    return defaultList;
+    localStorage.setItem(MANAGED_USERS_KEY, JSON.stringify(baseList));
+    return baseList;
   },
 
-  /**
-   * Saves updated managed users list
-   */
   saveManagedUsers(users: ManagedUser[]) {
     try {
-      localStorage.setItem('zach_managed_users_list_v2', JSON.stringify(users));
+      localStorage.setItem(MANAGED_USERS_KEY, JSON.stringify(users));
     } catch (e) {
       console.warn('Failed to save managed users', e);
     }
   },
 
-  /**
-   * Retrieves injection history
-   */
   getInjectionHistory(): CreditInjectionRecord[] {
     try {
-      const stored = localStorage.getItem('zach_credit_injections_history_v2');
+      const stored = localStorage.getItem(INJECTIONS_KEY);
       if (stored) {
         return JSON.parse(stored);
       }
     } catch {
       // ignore
     }
-    return [
-      {
-        id: 'inj_seed_1',
-        adminName: SUPREME_OWNER_NAME,
-        adminEmail: SUPREME_OWNER_EMAIL,
-        targetUserEmail: 'estudante@zach.ai',
-        targetUserName: 'Estudante Dev Iniciante',
-        creditsAdded: 500,
-        reason: 'Bônus de Incentivo para Estudos',
-        timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
-        supabaseSynced: true,
-      },
-    ];
+    return [];
   },
 
   /**
-   * Allows Supreme Owner (Pedro Henrique) to inject credits into any user account
+   * Permite que o Dono Supremo (Pedro Henrique) adicione créditos a qualquer usuário real
    */
   async injectCreditsToUser(
     targetEmail: string,
@@ -476,13 +349,12 @@ export const billingService = {
       users[userIndex].totalInjected = (users[userIndex].totalInjected || 0) + creditsToAdd;
       targetUser = users[userIndex];
     } else {
-      // New user account registered on the fly
       targetUser = {
-        id: `usr_custom_${Date.now()}`,
+        id: `usr_client_${Date.now()}`,
         name: targetEmail.split('@')[0],
         email: targetEmail.trim(),
         role: 'user',
-        planName: 'Injetado pelo Dono Supremo',
+        planName: 'Créditos Concedidos pelo Dono Supremo',
         credits: creditsToAdd,
         totalInjected: creditsToAdd,
       };
@@ -491,14 +363,12 @@ export const billingService = {
 
     this.saveManagedUsers(users);
 
-    // If target is current active user in session, update their live balance too
     const currentUser = authService.getCurrentUser();
     if (currentUser.email.toLowerCase() === targetEmail.trim().toLowerCase()) {
       currentUser.credits += creditsToAdd;
       authService.setCurrentUser(currentUser);
     }
 
-    // Record in history log
     const history = this.getInjectionHistory();
     const newRecord: CreditInjectionRecord = {
       id: `inj_${Date.now()}`,
@@ -513,55 +383,16 @@ export const billingService = {
     };
     history.unshift(newRecord);
     try {
-      localStorage.setItem('zach_credit_injections_history_v2', JSON.stringify(history));
+      localStorage.setItem(INJECTIONS_KEY, JSON.stringify(history));
     } catch {
       // ignore
     }
 
-    // Also record transaction in recent sales/activity
-    const transactions = this.getTransactions();
-    transactions.unshift({
-      id: `tx_inj_${Date.now().toString().slice(-5)}`,
-      userId: targetUser.id,
-      userEmail: targetUser.email,
-      userName: targetUser.name,
-      planId: 'owner_injection',
-      planName: `Injeção ADM (+${creditsToAdd.toLocaleString('pt-BR')} cr.)`,
-      amount: 0,
-      creditsAwarded: creditsToAdd,
-      method: 'pix',
-      status: 'approved',
-      createdAt: new Date().toISOString(),
-    });
-    this.saveTransactions(transactions);
-
     return {
       success: true,
       targetUser,
-      message: `Sucesso! +${creditsToAdd.toLocaleString('pt-BR')} créditos injetados na conta de ${targetUser.name} (${targetUser.email}).`,
+      message: `Sucesso! +${creditsToAdd.toLocaleString('pt-BR')} créditos adicionados para ${targetUser.email}.`,
     };
-  },
-
-  requestPixWithdrawal(amount: number, pixKey: string, pixKeyType: 'cpf' | 'email' | 'phone' | 'random'): WithdrawalRequest {
-    const withdrawals = this.getWithdrawals();
-    const wthId = `wth_${Date.now().toString().slice(-6)}`;
-    const txCode = `PIX-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Date.now().toString().slice(-4)}`;
-
-    const newWithdrawal: WithdrawalRequest = {
-      id: wthId,
-      requestedBy: SUPREME_OWNER_NAME,
-      amount: Number(amount.toFixed(2)),
-      pixKey,
-      pixKeyType,
-      status: 'completed',
-      requestedAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-      transactionCode: txCode,
-    };
-
-    withdrawals.unshift(newWithdrawal);
-    this.saveWithdrawals(withdrawals);
-    return newWithdrawal;
   },
 };
 
