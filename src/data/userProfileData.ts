@@ -28,7 +28,7 @@ export interface UserProfileState {
 export const INITIAL_USER_PROFILE: UserProfileState = {
   name: 'Estudante Zach',
   title: 'Explorador Fullstack & IA',
-  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+  avatarUrl: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='64' fill='%23080e21'/><circle cx='64' cy='46' r='20' fill='%2300d4ff'/><path d='M26 106 c0 -20 17 -34 38 -34 s38 14 38 34 Z' fill='%2300d4ff'/></svg>`,
   totalXp: 0,
   level: 1,
   currentStreakDays: 0,

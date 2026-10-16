@@ -146,7 +146,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Coins className="h-3.5 w-3.5 text-cyan-400" />
             <span className="font-mono text-cyan-300">
-              {`${currentUser.credits}/${currentUser.maxCredits || 300} cr.`}
+              {`${currentUser.credits}/${currentUser.maxCredits || 500} cr.`}
             </span>
             <span className="rounded bg-cyan-500/20 text-cyan-300 text-[10px] px-1 py-0.2 hidden sm:inline">
               +Recarregar
@@ -158,12 +158,20 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={() => onOpenAuthModal?.()}
           type="button"
-          className="flex items-center gap-1.5 rounded-lg border border-[#1b2b4a] bg-[#091127] p-1.5 text-xs text-slate-300 hover:border-cyan-500/40 hover:text-white"
+          className="flex items-center gap-1.5 rounded-lg border border-[#1b2b4a] bg-[#091127] p-1.5 text-xs text-slate-300 hover:border-cyan-500/40 hover:text-white transition-colors"
           title={currentUser.isSupremeOwner ? 'Pedro Henrique (Dono Supremo)' : currentUser.name}
         >
-          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-cyan-400 text-[10px] font-bold text-slate-950">
-            {currentUser.name.charAt(0).toUpperCase()}
-          </div>
+          {currentUser.avatar ? (
+            <img
+              src={currentUser.avatar}
+              alt={currentUser.name}
+              className="h-5 w-5 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-cyan-400 text-[10px] font-bold text-slate-950">
+              {currentUser.name.charAt(0).toUpperCase()}
+            </div>
+          )}
           {currentUser.isSupremeOwner && (
             <Crown className="h-3.5 w-3.5 text-amber-400 hidden sm:inline" />
           )}

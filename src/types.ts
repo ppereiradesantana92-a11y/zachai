@@ -248,6 +248,8 @@ export interface ProjectTemplate {
   samplePrompt: string;
 }
 
+export type AppTheme = 'neon-blue' | 'cyber-purple' | 'emerald-green';
+
 export interface AppSettings {
   preferredModel: string;
   responseDetail: 'concise' | 'balanced' | 'comprehensive';
@@ -256,6 +258,8 @@ export interface AppSettings {
   autoCopyCode: boolean;
   highContrast: boolean;
   language: string;
+  theme: AppTheme;
+  enableRgbBorder: boolean;
 }
 
 export interface RefactoringSmell {

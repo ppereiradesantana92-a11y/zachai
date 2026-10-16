@@ -32,6 +32,8 @@ function getTodayDateString(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+export const DEFAULT_SYSTEM_AVATAR = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='64' fill='%23080e21'/><circle cx='64' cy='46' r='20' fill='%2300d4ff'/><path d='M26 106 c0 -20 17 -34 38 -34 s38 14 38 34 Z' fill='%2300d4ff'/></svg>`;
+
 const DEFAULT_SUPREME_OWNER: UserProfile = {
   id: 'usr_supreme_pedro_henrique',
   name: 'Pedro Henrique',
@@ -48,15 +50,15 @@ const DEFAULT_SUPREME_OWNER: UserProfile = {
   subscriptionActive: true,
   joinedAt: '2024-01-01T00:00:00.000Z',
   lastLoginAt: new Date().toISOString(),
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+  avatar: 'https://github.com/ppereiradesantana92-a11y.png',
 };
 
 const DEFAULT_REGULAR_USER: UserProfile = {
-  id: 'usr_default_student',
-  name: 'Estudante Dev',
-  lastName: 'Iniciante',
-  email: 'estudante@zach.ai',
-  phone: '+55 11 99999-8888',
+  id: 'usr_clean_start',
+  name: 'Novo Usuário',
+  lastName: '',
+  email: 'usuario@zach.ai',
+  phone: '',
   role: 'user',
   isSupremeOwner: false,
   credits: 500,
@@ -67,6 +69,7 @@ const DEFAULT_REGULAR_USER: UserProfile = {
   subscriptionActive: true,
   joinedAt: new Date().toISOString(),
   lastLoginAt: new Date().toISOString(),
+  avatar: DEFAULT_SYSTEM_AVATAR,
   visitorDailyGenerationsRemaining: VISITOR_DAILY_FREE_LIMIT,
   lastDailyResetDate: getTodayDateString(),
 };
@@ -324,6 +327,7 @@ export const authService = {
       lastLoginAt: new Date().toISOString(),
       visitorDailyGenerationsRemaining: VISITOR_DAILY_FREE_LIMIT,
       lastDailyResetDate: getTodayDateString(),
+      avatar: DEFAULT_SYSTEM_AVATAR,
     };
 
     this.setCurrentUser(regularUser);
@@ -354,6 +358,7 @@ export const authService = {
       subscriptionActive: true,
       joinedAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
+      avatar: isOwner ? 'https://github.com/ppereiradesantana92-a11y.png' : DEFAULT_SYSTEM_AVATAR,
       visitorDailyGenerationsRemaining: VISITOR_DAILY_FREE_LIMIT,
       lastDailyResetDate: getTodayDateString(),
     };
@@ -392,6 +397,7 @@ export const authService = {
       generationsCount: 0,
       joinedAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
+      avatar: DEFAULT_SYSTEM_AVATAR,
       visitorDailyGenerationsRemaining: VISITOR_DAILY_FREE_LIMIT,
       lastDailyResetDate: getTodayDateString(),
     };

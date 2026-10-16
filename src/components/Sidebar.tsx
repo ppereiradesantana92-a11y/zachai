@@ -324,7 +324,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <div className="mt-1 flex items-baseline justify-between">
                 <span className="text-sm font-black font-mono text-cyan-200">
-                  {`${currentUser.credits}/${currentUser.maxCredits || 300} cr.`}
+                  {`${currentUser.credits}/${currentUser.maxCredits || 500} cr.`}
                 </span>
                 <span className="text-[10px] text-slate-400">10 cr. / geração</span>
               </div>
@@ -334,9 +334,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* User Profile Mini Bar */}
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-2 overflow-hidden">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-cyan-400 text-[11px] font-bold text-slate-950">
-                {currentUser.name.charAt(0).toUpperCase()}
-              </div>
+              {currentUser.avatar ? (
+                <img
+                  src={currentUser.avatar}
+                  alt={currentUser.name}
+                  className="h-7 w-7 shrink-0 rounded-full object-cover border border-cyan-500/40 shadow-sm"
+                />
+              ) : (
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-cyan-400 text-[11px] font-bold text-slate-950">
+                  {currentUser.name.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="truncate">
                 <div className="truncate text-xs font-semibold text-white flex items-center gap-1">
                   <span>{currentUser.name}</span>

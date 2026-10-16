@@ -68,14 +68,24 @@ export default function App() {
   const [selectedPlanIdForCheckout, setSelectedPlanIdForCheckout] = useState('monthly');
   const [creditNotice, setCreditNotice] = useState<string | null>(null);
 
-  const [settings, setSettings] = useState<AppSettings>({
-    preferredModel: 'ZachAI Core Engine (Etapa 1)',
-    responseDetail: 'balanced',
-    indentSize: 2,
-    showLineNumbers: true,
-    autoCopyCode: false,
-    highContrast: false,
-    language: 'pt-BR',
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    try {
+      const stored = localStorage.getItem('zach_app_settings_v3');
+      if (stored) return JSON.parse(stored);
+    } catch {
+      // ignore
+    }
+    return {
+      preferredModel: 'ZachAI Core Engine (Etapa 1)',
+      responseDetail: 'balanced',
+      indentSize: 2,
+      showLineNumbers: true,
+      autoCopyCode: false,
+      highContrast: false,
+      language: 'pt-BR',
+      theme: 'neon-blue',
+      enableRgbBorder: true,
+    };
   });
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
@@ -690,7 +700,26 @@ export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#050813] text-slate-100">
+    <div
+      className={`flex min-h-screen bg-[#050813] text-slate-100 relative ${
+        settings.theme === 'cyber-purple'
+          ? 'selection:bg-purple-500/30'
+          : settings.theme === 'emerald-green'
+          ? 'selection:bg-emerald-500/30'
+          : 'selection:bg-cyan-500/30'
+      }`}
+    >
+      {/* Ambient Fluid LED / RGB Border Effect */}
+      {settings.enableRgbBorder && (
+        <>
+          <div className="pointer-events-none fixed inset-y-0 left-0 w-[2px] bg-gradient-to-b from-cyan-400 via-purple-500 to-emerald-400 z-50 animate-pulse opacity-85 shadow-[0_0_8px_rgba(0,212,255,0.7)]" />
+          <div className="pointer-events-none fixed inset-y-0 right-0 w-[2px] bg-gradient-to-b from-emerald-400 via-purple-500 to-cyan-400 z-50 animate-pulse opacity-85 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
+          <div className="pointer-events-none fixed inset-x-0 top-0 h-[2px] bg-gradient-to-r from-cyan-400 via-purple-500 to-emerald-400 z-50 opacity-80" />
+          <div className="pointer-events-none fixed inset-y-0 left-0 w-4 bg-gradient-to-b from-cyan-500/10 via-purple-500/10 to-emerald-500/10 blur-sm z-40" />
+          <div className="pointer-events-none fixed inset-y-0 right-0 w-4 bg-gradient-to-b from-emerald-500/10 via-purple-500/10 to-cyan-500/10 blur-sm z-40" />
+        </>
+      )}
+
       {/* Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
@@ -979,7 +1008,14 @@ export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
           {currentTab === 'settings' && (
             <SettingsView
               settings={settings}
-              onUpdateSettings={(newSettings) => setSettings(newSettings)}
+              onUpdateSettings={(newSettings) => {
+                setSettings(newSettings);
+                try {
+                  localStorage.setItem('zach_app_settings_v3', JSON.stringify(newSettings));
+                } catch {
+                  // ignore
+                }
+              }}
             />
           )}
 

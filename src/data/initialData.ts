@@ -74,68 +74,12 @@ export const SUGGESTIONS = {
 
 export const INITIAL_CHAT_SESSIONS: ChatSession[] = [
   {
-    id: 'session-welcome',
-    title: 'Guia de Inicialização do ZachAI',
+    id: 'session-main',
+    title: 'Nova Conversa',
     category: 'general',
-    lastUpdated: 'Hoje, 09:30',
-    preview: 'Bem-vindo ao ZachAI! Veja como posso ajudar no seu fluxo de desenvolvimento.',
-    messages: [
-      {
-        id: 'msg-1',
-        sender: 'assistant',
-        content: `Olá! Sou o **ZachAI**, seu assistente de programação futurista focado em alta produtividade, código limpo e arquitetura de software.\n\nVocê pode me pedir para:\n* **Criar sites e aplicações completas** com React, Tailwind, Next.js e TypeScript;\n* **Explicar trechos de código complexos** e padrões de engenharia;\n* **Diagnosticar e corrigir erros** com análise de causa raiz e diffs imediatos.\n\n*Nota sobre a Fase 1: As ferramentas estruturadas de análise de código e correção de erros estão ativas. A integração direta com o modelo de linguagem no servidor será conectada na próxima etapa.*`,
-        timestamp: '09:30',
-      },
-    ],
-  },
-  {
-    id: 'session-react-debounce',
-    title: 'Exemplo: Hook useDebounce em TypeScript',
-    category: 'explanation',
-    lastUpdated: 'Hoje, 08:45',
-    preview: 'Implementação de custom hook para busca em tempo real com TypeScript.',
-    messages: [
-      {
-        id: 'msg-2-1',
-        sender: 'user',
-        content: 'Como criar um hook personalizado useDebounce em React com TypeScript para otimizar um input de pesquisa?',
-        timestamp: '08:43',
-      },
-      {
-        id: 'msg-2-2',
-        sender: 'assistant',
-        content: `Aqui está uma implementação limpa e reutilizável do hook \`useDebounce\`. Ela aceita qualquer tipo de valor e adia a atualização até que o tempo estipulado transcorra sem novas alterações.`,
-        codeSnippet: {
-          language: 'typescript',
-          filename: 'src/hooks/useDebounce.ts',
-          code: `import { useState, useEffect } from 'react';
-
-/**
- * Hook para atrasar atualizações de valores (debounce).
- * @param value Valor a ser monitorado
- * @param delay Tempo em milissegundos (padrão: 300ms)
- */
-export function useDebounce<T>(value: T, delay: number = 300): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    // Agenda a atualização do valor
-    const timer = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    // Limpa o timer se o valor mudar antes do prazo
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}`,
-        },
-        timestamp: '08:45',
-      },
-    ],
+    lastUpdated: 'Hoje',
+    preview: 'Inicie uma conversa ou peça código para Alex IA',
+    messages: [],
   },
 ];
 
