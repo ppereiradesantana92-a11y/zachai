@@ -12,8 +12,10 @@ import {
   ArrowRight,
   Github,
   Globe,
+  Loader2,
 } from 'lucide-react';
 import { authService, SUPREME_OWNER_EMAIL, SUPREME_OWNER_NAME, INITIAL_SIGNUP_BONUS_CREDITS } from '../services/authService';
+import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
 
 interface AuthModalProps {
@@ -36,6 +38,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [socialLoadingProvider, setSocialLoadingProvider] = useState<'google' | 'facebook' | 'github' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -80,15 +83,52 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }, 700);
   };
 
-  const handleSocialLogin = (provider: 'google' | 'facebook' | 'github') => {
+  const handleSocialLogin = async (provider: 'google' | 'facebook' | 'github') => {
     setError(null);
     setIsLoading(true);
-    setTimeout(() => {
-      const user = authService.loginSocial(provider);
+    setSocialLoadingProvider(provider);
+
+    try {
+      const options: {
+        redirectTo?: string;
+        queryParams?: Record<string, string>;
+      } = {
+        redirectTo: window.location.origin,
+      };
+
+      // Ensure Google redirects to native Google login window so user selects their real email account
+      if (provider === 'google') {
+        options.queryParams = {
+          prompt: 'select_account',
+          access_type: 'offline',
+        };
+      }
+
+      console.log(`[AuthModal] Chamando supabase.auth.signInWithOAuth (${provider}) com redirectTo: ${window.location.origin}`);
+
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options,
+      });
+
+      if (oauthError) {
+        console.error(`[AuthModal] Erro no login social com ${provider}:`, oauthError);
+        setIsLoading(false);
+        setSocialLoadingProvider(null);
+        setError(`Falha ao conectar com ${provider.toUpperCase()}: ${oauthError.message}`);
+        return;
+      }
+
+      // If data.url returned and browser did not automatically redirect, force redirect
+      if (data?.url && typeof window !== 'undefined') {
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      console.error(`[AuthModal] Exceção no login social com ${provider}:`, err);
       setIsLoading(false);
-      onSuccess(user);
-      onClose();
-    }, 600);
+      setSocialLoadingProvider(null);
+      setError(`Erro inesperado ao conectar com ${provider}: ${err?.message || err}`);
+    }
   };
 
   const handleQuickSupremeOwner = () => {
@@ -185,48 +225,66 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => handleSocialLogin('google')}
+              disabled={isLoading}
               type="button"
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-[#1b2b4a] bg-[#0b1329] py-2 text-xs font-medium text-slate-200 hover:border-cyan-500/40 hover:bg-[#0f1a38] transition-all"
+              className="flex items-center justify-center gap-1.5 rounded-lg border border-[#1b2b4a] bg-[#0b1329] py-2 text-xs font-medium text-slate-200 hover:border-cyan-500/40 hover:bg-[#0f1a38] disabled:opacity-50 transition-all"
+              title="Entrar com sua conta Google (selecionar e-mail real via Supabase)"
             >
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <span>Google</span>
+              {socialLoadingProvider === 'google' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" />
+              ) : (
+                <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+              )}
+              <span>{socialLoadingProvider === 'google' ? 'Entrando...' : 'Google'}</span>
             </button>
 
             <button
               onClick={() => handleSocialLogin('github')}
+              disabled={isLoading}
               type="button"
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-[#1b2b4a] bg-[#0b1329] py-2 text-xs font-medium text-slate-200 hover:border-cyan-500/40 hover:bg-[#0f1a38] transition-all"
+              className="flex items-center justify-center gap-1.5 rounded-lg border border-[#1b2b4a] bg-[#0b1329] py-2 text-xs font-medium text-slate-200 hover:border-cyan-500/40 hover:bg-[#0f1a38] disabled:opacity-50 transition-all"
+              title="Entrar com sua conta GitHub via Supabase"
             >
-              <Github className="h-3.5 w-3.5 text-white" />
-              <span>GitHub</span>
+              {socialLoadingProvider === 'github' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" />
+              ) : (
+                <Github className="h-3.5 w-3.5 text-white shrink-0" />
+              )}
+              <span>{socialLoadingProvider === 'github' ? 'Entrando...' : 'GitHub'}</span>
             </button>
 
             <button
               onClick={() => handleSocialLogin('facebook')}
+              disabled={isLoading}
               type="button"
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-[#1b2b4a] bg-[#0b1329] py-2 text-xs font-medium text-slate-200 hover:border-cyan-500/40 hover:bg-[#0f1a38] transition-all"
+              className="flex items-center justify-center gap-1.5 rounded-lg border border-[#1b2b4a] bg-[#0b1329] py-2 text-xs font-medium text-slate-200 hover:border-cyan-500/40 hover:bg-[#0f1a38] disabled:opacity-50 transition-all"
+              title="Entrar com sua conta Facebook via Supabase"
             >
-              <svg className="h-3.5 w-3.5 text-blue-500 fill-current" viewBox="0 0 24 24">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-              </svg>
-              <span>Facebook</span>
+              {socialLoadingProvider === 'facebook' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+              ) : (
+                <svg className="h-3.5 w-3.5 text-blue-500 fill-current shrink-0" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+              )}
+              <span>{socialLoadingProvider === 'facebook' ? 'Entrando...' : 'Facebook'}</span>
             </button>
           </div>
 

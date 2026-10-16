@@ -1,8 +1,10 @@
-import { UserProfile } from '../types';
+import { UserProfile, UserRole } from '../types';
 import {
   syncPedroHenriqueProfile,
   syncUserProfile,
   updateSupabaseCredits,
+  fetchSupabaseProfile,
+  supabase,
   INITIAL_SYNC_CREDITS,
   MAX_SYNC_CREDITS,
 } from '../lib/supabaseClient';
@@ -119,33 +121,56 @@ export const authService = {
     });
   },
 
-  loginSocial(provider: 'google' | 'facebook' | 'github'): UserProfile {
-    // Simulated realistic social auth
-    const names: Record<string, string> = {
-      google: 'Google User',
-      facebook: 'Facebook User',
-      github: 'GitHub Developer',
-    };
+  async signInWithOAuth(
+    provider: 'google' | 'facebook' | 'github'
+  ): Promise<{ data?: any; error?: any }> {
+    try {
+      const origin =
+        typeof window !== 'undefined' && window.location.origin
+          ? window.location.origin
+          : '';
 
-    const newUser: UserProfile = {
-      id: `usr_${provider}_${Date.now()}`,
-      name: names[provider],
-      email: `user.${provider}@exemplo.com`,
-      role: 'user',
-      isSupremeOwner: false,
-      credits: INITIAL_SIGNUP_BONUS_CREDITS,
-      totalCreditsUsed: 0,
-      generationsCount: 0,
-      subscriptionPlanId: 'free',
-      subscriptionActive: true,
-      joinedAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-      visitorDailyGenerationsRemaining: VISITOR_DAILY_FREE_LIMIT,
-      lastDailyResetDate: getTodayDateString(),
-    };
+      const options: {
+        redirectTo?: string;
+        queryParams?: Record<string, string>;
+      } = {
+        redirectTo: origin,
+      };
 
-    this.setCurrentUser(newUser);
-    return newUser;
+      // Ensure Google shows the native account selector so the user can choose their real email account
+      if (provider === 'google') {
+        options.queryParams = {
+          prompt: 'select_account',
+          access_type: 'offline',
+        };
+      }
+
+      console.log(`[authService] Iniciando Supabase OAuth (${provider}) com redirectTo:`, origin);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options,
+      });
+
+      if (error) {
+        console.error(`[authService] Erro retornado pelo Supabase OAuth (${provider}):`, error.message);
+        return { error };
+      }
+
+      // If data?.url is present and browser didn't redirect automatically, redirect explicitly
+      if (data?.url && typeof window !== 'undefined') {
+        window.location.href = data.url;
+      }
+
+      return { data };
+    } catch (err: any) {
+      console.error(`[authService] Exceção durante signInWithOAuth com ${provider}:`, err);
+      return { error: err };
+    }
+  },
+
+  async loginSocial(provider: 'google' | 'facebook' | 'github'): Promise<{ data?: any; error?: any }> {
+    return this.signInWithOAuth(provider);
   },
 
   loginWithEmail(email: string, _password?: string): UserProfile {
@@ -225,6 +250,14 @@ export const authService = {
   },
 
   logout(): UserProfile {
+    try {
+      supabase.auth.signOut().catch((err) => {
+        console.warn('[authService] Aviso ao deslogar do Supabase:', err);
+      });
+    } catch {
+      // ignore
+    }
+
     const visitor: UserProfile = {
       id: 'usr_visitor',
       name: 'Visitante',
@@ -316,3 +349,121 @@ export const authService = {
     });
   },
 };
+
+/**
+ * Processes a Supabase user session (e.g. following OAuth redirect from Google/Facebook/GitHub),
+ * maps profile attributes, updates local user and notifies all app listeners.
+ */
+export async function handleSupabaseUserSession(sbUser: any): Promise<UserProfile | null> {
+  if (!sbUser || !sbUser.email) return null;
+
+  const email: string = sbUser.email;
+  const metadata = sbUser.user_metadata || {};
+  const fullName: string =
+    metadata.full_name ||
+    metadata.name ||
+    metadata.user_name ||
+    email.split('@')[0] ||
+    'Usuário';
+
+  const isOwner = isSupremeOwnerUser(email, fullName);
+  const avatar =
+    metadata.avatar_url ||
+    metadata.picture ||
+    (isOwner ? DEFAULT_SUPREME_OWNER.avatar : undefined);
+
+  // Attempt to fetch existing profile from Supabase database or local cache
+  let dbProfile = await fetchSupabaseProfile(email);
+
+  const currentUser = authService.getCurrentUser();
+  const currentCredits =
+    currentUser.email === email
+      ? currentUser.credits
+      : (dbProfile?.credits ?? INITIAL_SIGNUP_BONUS_CREDITS);
+
+  const userProfile: UserProfile = {
+    id: sbUser.id || (isOwner ? 'usr_supreme_pedro_henrique' : `usr_sb_${Date.now()}`),
+    name: fullName,
+    lastName: metadata.last_name || (isOwner ? 'Santana' : undefined),
+    email: email,
+    phone: sbUser.phone || metadata.phone || '',
+    role: (isOwner ? 'supreme_owner' : (dbProfile?.role === 'admin' || dbProfile?.role === 'visitor' ? dbProfile.role : 'user')) as UserRole,
+    isSupremeOwner: isOwner,
+    credits: isOwner ? 100000 : currentCredits,
+    maxCredits: MAX_SYNC_CREDITS,
+    totalCreditsUsed: dbProfile?.total_credits_used || 0,
+    generationsCount: dbProfile?.generations_count || 0,
+    subscriptionPlanId: isOwner ? 'annual' : (dbProfile?.subscription_plan_id || 'free'),
+    subscriptionActive: true,
+    joinedAt: sbUser.created_at || new Date().toISOString(),
+    lastLoginAt: new Date().toISOString(),
+    avatar,
+    visitorDailyGenerationsRemaining: VISITOR_DAILY_FREE_LIMIT,
+    lastDailyResetDate: getTodayDateString(),
+  };
+
+  authService.setCurrentUser(userProfile);
+
+  // If OAuth token parameters are present in URL hash (#access_token=...), clean them cleanly
+  if (
+    typeof window !== 'undefined' &&
+    window.location.hash &&
+    (window.location.hash.includes('access_token') || window.location.hash.includes('error'))
+  ) {
+    try {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    } catch {
+      // ignore
+    }
+  }
+
+  return userProfile;
+}
+
+/**
+ * Initializes listeners for Supabase authentication state and active sessions.
+ */
+export function initSupabaseAuthListener(): () => void {
+  if (typeof window === 'undefined') return () => {};
+
+  // Check active session on initial load
+  supabase.auth
+    .getSession()
+    .then(({ data: { session }, error }) => {
+      if (error) {
+        console.warn('[authService] Aviso ao recuperar sessão inicial do Supabase:', error.message);
+        return;
+      }
+      if (session?.user) {
+        handleSupabaseUserSession(session.user).catch((e) => {
+          console.warn('[authService] Erro ao sincronizar sessão inicial:', e);
+        });
+      }
+    })
+    .catch((err) => {
+      console.warn('[authService] Falha ao obter sessão do Supabase:', err);
+    });
+
+  // Subscribe to real-time auth events (OAuth redirect SIGNED_IN, token refresh, etc.)
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('[authService] Supabase Auth Event:', event, session?.user?.email);
+    if (
+      (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') &&
+      session?.user
+    ) {
+      await handleSupabaseUserSession(session.user);
+    }
+  });
+
+  return () => {
+    subscription?.unsubscribe();
+  };
+}
+
+// Auto-initialize auth listener on browser boot
+if (typeof window !== 'undefined') {
+  initSupabaseAuthListener();
+}
+

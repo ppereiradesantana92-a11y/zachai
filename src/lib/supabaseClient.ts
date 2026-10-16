@@ -138,6 +138,10 @@ function createSafeSupabaseClient(): SupabaseClient {
         }),
         auth: {
           getUser: async () => ({ data: { user: null }, error: null }),
+          getSession: async () => ({ data: { session: null }, error: null }),
+          onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+          signInWithOAuth: async () => ({ data: { provider: '', url: '' }, error: new Error('Supabase client não inicializado') }),
+          signOut: async () => ({ error: null }),
         },
       } as unknown as SupabaseClient;
     }
