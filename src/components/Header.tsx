@@ -67,11 +67,13 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2 text-sm">
           <button
             onClick={() => onNavigate('home')}
-            className="flex items-center gap-1.5 font-bold tracking-tight text-white hover:text-cyan-400 transition-colors"
+            className="flex items-center gap-2 font-bold tracking-tight text-white hover:text-cyan-400 transition-colors"
           >
-            <div className="flex h-5 w-5 items-center justify-center rounded bg-gradient-to-tr from-blue-600 to-cyan-400 text-[10px] text-black font-extrabold shadow-sm shadow-cyan-500/30">
-              Z
-            </div>
+            <img
+              src="https://github.com/ppereiradesantana92-a11y.png"
+              alt="Pedro Henrique"
+              className="w-8 h-8 rounded-lg object-cover"
+            />
             <span className="hidden sm:inline">ZachAI</span>
           </button>
           <span className="text-slate-600 select-none">/</span>
