@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   NavigationTab,
   ChatMessage,
@@ -40,6 +40,7 @@ import { AuthModal } from './components/AuthModal';
 import { CheckoutModal } from './components/CheckoutModal';
 import { PaymentNotificationToast } from './components/PaymentNotificationToast';
 import { authService } from './services/authService';
+import { getThemeConfig, applyThemeGlobalStyles } from './services/themeService';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<NavigationTab>('home');
@@ -88,6 +89,13 @@ export default function App() {
       enableRgbBorder: true,
     };
   });
+
+  // Aplicação instantânea dos estilos e acentos cromáticos globais
+  useEffect(() => {
+    applyThemeGlobalStyles(settings.theme, settings.enableRgbBorder);
+  }, [settings.theme, settings.enableRgbBorder]);
+
+  const activeThemeConfig = getThemeConfig(settings.theme);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
 
@@ -702,24 +710,49 @@ export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
 
   return (
     <div
-      className={`flex min-h-screen bg-[#050813] text-slate-100 relative ${
-        settings.theme === 'cyber-purple'
-          ? 'selection:bg-purple-500/30'
-          : settings.theme === 'emerald-green'
-          ? 'selection:bg-emerald-500/30'
-          : 'selection:bg-cyan-500/30'
-      }`}
+      data-theme={settings.theme}
+      data-rgb-border={settings.enableRgbBorder ? 'true' : 'false'}
+      className={`flex min-h-screen bg-[#050813] text-slate-100 relative ${activeThemeConfig.selectionClass}`}
     >
-      {/* Ambient Fluid LED / RGB Border Effect */}
-      {settings.enableRgbBorder && (
-        <>
-          <div className="pointer-events-none fixed inset-y-0 left-0 w-[2px] bg-gradient-to-b from-cyan-400 via-purple-500 to-emerald-400 z-50 animate-pulse opacity-85 shadow-[0_0_8px_rgba(0,212,255,0.7)]" />
-          <div className="pointer-events-none fixed inset-y-0 right-0 w-[2px] bg-gradient-to-b from-emerald-400 via-purple-500 to-cyan-400 z-50 animate-pulse opacity-85 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
-          <div className="pointer-events-none fixed inset-x-0 top-0 h-[2px] bg-gradient-to-r from-cyan-400 via-purple-500 to-emerald-400 z-50 opacity-80" />
-          <div className="pointer-events-none fixed inset-y-0 left-0 w-4 bg-gradient-to-b from-cyan-500/10 via-purple-500/10 to-emerald-500/10 blur-sm z-40" />
-          <div className="pointer-events-none fixed inset-y-0 right-0 w-4 bg-gradient-to-b from-emerald-500/10 via-purple-500/10 to-cyan-500/10 blur-sm z-40" />
-        </>
-      )}
+      {/* Ambient Fluid LED / RGB Border Effect: Removido completamente do DOM quando desativado */}
+      {settings.enableRgbBorder ? (
+        <div
+          key={`led-border-${settings.theme}`}
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 z-50 overflow-hidden"
+        >
+          {/* Trilho LED Superior */}
+          <div
+            className={`fixed inset-x-0 top-0 h-[2px] ${activeThemeConfig.ambientLedGradient.top} ${activeThemeConfig.ambientLedGradient.glowShadow} opacity-95 animate-pulse`}
+          />
+          {/* Trilho LED Inferior */}
+          <div
+            className={`fixed inset-x-0 bottom-0 h-[2px] ${activeThemeConfig.ambientLedGradient.bottom} ${activeThemeConfig.ambientLedGradient.glowShadow} opacity-95 animate-pulse`}
+          />
+          {/* Trilho LED Esquerdo */}
+          <div
+            className={`fixed inset-y-0 left-0 w-[2px] ${activeThemeConfig.ambientLedGradient.left} ${activeThemeConfig.ambientLedGradient.glowShadow} opacity-95 animate-pulse`}
+          />
+          {/* Trilho LED Direito */}
+          <div
+            className={`fixed inset-y-0 right-0 w-[2px] ${activeThemeConfig.ambientLedGradient.right} ${activeThemeConfig.ambientLedGradient.glowShadow} opacity-95 animate-pulse`}
+          />
+
+          {/* Plumas de Glow Perimetral Suaves */}
+          <div
+            className={`fixed inset-y-0 left-0 w-8 ${activeThemeConfig.ambientLedGradient.left} blur-md opacity-20`}
+          />
+          <div
+            className={`fixed inset-y-0 right-0 w-8 ${activeThemeConfig.ambientLedGradient.right} blur-md opacity-20`}
+          />
+          <div
+            className={`fixed inset-x-0 top-0 h-8 ${activeThemeConfig.ambientLedGradient.top} blur-md opacity-20`}
+          />
+          <div
+            className={`fixed inset-x-0 bottom-0 h-8 ${activeThemeConfig.ambientLedGradient.bottom} blur-md opacity-20`}
+          />
+        </div>
+      ) : null}
 
       {/* Sidebar Navigation */}
       <Sidebar

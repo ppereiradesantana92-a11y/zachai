@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Settings,
   ShieldCheck,
@@ -21,41 +21,16 @@ import {
   Loader2,
 } from 'lucide-react';
 import { AppSettings, AppTheme } from '../../types';
+import {
+  ALL_THEMES,
+  applyThemeGlobalStyles,
+  getThemeConfig,
+} from '../../services/themeService';
 
 interface SettingsViewProps {
   settings: AppSettings;
   onUpdateSettings: (newSettings: AppSettings) => void;
 }
-
-const THEME_OPTIONS: Array<{
-  id: AppTheme;
-  name: string;
-  desc: string;
-  gradient: string;
-  accentColor: string;
-}> = [
-  {
-    id: 'neon-blue',
-    name: 'Azul Neon (Padrão)',
-    desc: 'Estética futurista com acentos elétricos ciano e azul cobalto.',
-    gradient: 'from-blue-600 via-cyan-400 to-teal-400',
-    accentColor: '#00d4ff',
-  },
-  {
-    id: 'cyber-purple',
-    name: 'Roxo Cyberpunk',
-    desc: 'Acentos violeta vibrante e fúcsia para programadores noturnos.',
-    gradient: 'from-purple-600 via-fuchsia-500 to-indigo-400',
-    accentColor: '#c084fc',
-  },
-  {
-    id: 'emerald-green',
-    name: 'Verde Esmeralda',
-    desc: 'Estilo terminal bio-sintético com tons esmeralda e menta.',
-    gradient: 'from-emerald-600 via-teal-400 to-green-400',
-    accentColor: '#34d399',
-  },
-];
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   settings,
@@ -65,6 +40,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [emailTestLoading, setEmailTestLoading] = useState(false);
   const [emailTestResult, setEmailTestResult] = useState<string | null>(null);
+
+  // Sincroniza estado local com props globais
+  useEffect(() => {
+    setLocalSettings(settings);
+    applyThemeGlobalStyles(settings.theme, settings.enableRgbBorder);
+  }, [settings]);
+
+  // Atualização instantânea do tema cromático em tempo real
+  const handleSelectTheme = (newTheme: AppTheme) => {
+    const updated: AppSettings = { ...localSettings, theme: newTheme };
+    setLocalSettings(updated);
+    onUpdateSettings(updated);
+    applyThemeGlobalStyles(newTheme, updated.enableRgbBorder);
+    try {
+      localStorage.setItem('zach_app_settings_v3', JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+  };
+
+  // Atualização instantânea da Borda LED / RGB Fluida
+  const handleToggleRgbBorder = (checked: boolean) => {
+    const updated: AppSettings = { ...localSettings, enableRgbBorder: checked };
+    setLocalSettings(updated);
+    onUpdateSettings(updated);
+    applyThemeGlobalStyles(updated.theme, checked);
+    try {
+      localStorage.setItem('zach_app_settings_v3', JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+  };
 
   const handleTestEmail = async () => {
     setEmailTestLoading(true);
@@ -95,6 +102,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateSettings(localSettings);
+    applyThemeGlobalStyles(localSettings.theme, localSettings.enableRgbBorder);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
   };
@@ -113,10 +121,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     };
     setLocalSettings(defaults);
     onUpdateSettings(defaults);
+    applyThemeGlobalStyles('neon-blue', true);
   };
 
+  const activeThemeConfig = getThemeConfig(localSettings.theme);
+
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col px-4 py-8 sm:px-6 space-y-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col px-4 py-8 sm:px-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-1 border-b border-slate-800 pb-4">
         <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400">
@@ -127,84 +138,115 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           Preferências & Customização Visual
         </h1>
         <p className="text-sm text-slate-300">
-          Personalize a estética da interface, temas cromáticos, bordas LED e o comportamento do assistente Alex IA.
+          Personalize a estética da interface, temas cromáticos em tempo real, iluminação LED perimetral e o assistente Alex IA.
         </p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Customização Visual (Nova Seção Requisitada) */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 space-y-5 shadow-sm">
+        {/* Customização Visual & Temas Dinâmicos */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-5 shadow-lg backdrop-blur-sm">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div className="flex items-center gap-2">
               <Palette className="h-4 w-4 text-cyan-400" />
-              <h2 className="text-sm font-bold text-white">Customização Visual & Temas</h2>
+              <h2 className="text-sm font-bold text-white">Customização Visual & Temas em Tempo Real</h2>
             </div>
-            <span className="text-[10px] bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded font-mono">
-              NOVO
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded font-mono font-semibold">
+                8 TEMAS DISPONÍVEIS
+              </span>
+              <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-semibold flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                AO VIVO
+              </span>
+            </div>
           </div>
 
-          {/* Seleção de Temas */}
+          {/* Seleção de Temas (Grid com os 8 temas oficiais) */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-2">
-              Paleta Cromática da Interface:
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {THEME_OPTIONS.map((t) => {
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-xs font-semibold text-slate-200">
+                Paleta Cromática Ativa:
+              </label>
+              <span className="text-xs text-slate-400">
+                Tema selecionado: <strong className="text-white">{activeThemeConfig.name}</strong>
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {ALL_THEMES.map((t) => {
                 const isSelected = localSettings.theme === t.id;
                 return (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setLocalSettings({ ...localSettings, theme: t.id })}
-                    className={`rounded-xl border p-3.5 text-left transition-all ${
+                    onClick={() => handleSelectTheme(t.id)}
+                    className={`group relative rounded-xl border p-3.5 text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-cyan-500 bg-slate-900 shadow-md shadow-cyan-950/40 scale-[1.01]'
-                        : 'border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-900/60'
+                        ? `${t.borderActive} bg-slate-900/90 shadow-lg scale-[1.02] ring-1 ring-white/10`
+                        : 'border-slate-800 bg-slate-950/70 hover:border-slate-700 hover:bg-slate-900/80 hover:scale-[1.01]'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className={`h-4 w-12 rounded-full bg-gradient-to-r ${t.gradient}`} />
-                      {isSelected && (
-                        <Check className="h-3.5 w-3.5 text-cyan-400" />
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className={`h-3.5 w-14 rounded-full bg-gradient-to-r ${t.gradient} shadow-sm group-hover:scale-105 transition-transform`} />
+                      {isSelected ? (
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-white">
+                          <Check className="h-3 w-3" style={{ color: t.accentColor }} />
+                        </span>
+                      ) : (
+                        <div
+                          className="h-2 w-2 rounded-full opacity-40 group-hover:opacity-100 transition-opacity"
+                          style={{ backgroundColor: t.accentColor }}
+                        />
                       )}
                     </div>
-                    <div className="font-bold text-white text-xs">{t.name}</div>
-                    <div className="text-[11px] text-slate-400 mt-1 leading-snug">{t.desc}</div>
+                    <div className="font-bold text-white text-xs tracking-tight flex items-center justify-between">
+                      <span>{t.name}</span>
+                    </div>
+                    <div className="text-[10px] font-mono text-slate-400 mt-0.5">{t.tagline}</div>
+                    <div className="text-[11px] text-slate-400 mt-1 leading-snug line-clamp-2">{t.desc}</div>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Borda LED / RGB Fluida Switch */}
-          <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="space-y-0.5">
+          {/* Borda LED / RGB Fluida Switch (Com controle rigoroso de estado) */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-4.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-400" />
                 <span className="text-xs font-bold text-white">
                   Iluminação Ambiente: Borda LED / RGB Fluida
                 </span>
-                <span className="rounded bg-gradient-to-r from-cyan-500 via-purple-500 to-emerald-400 px-1.5 py-0.2 text-[8px] font-black text-slate-950">
-                  RGB
+                <span className={`px-1.5 py-0.5 text-[9px] font-black rounded tracking-wider ${
+                  localSettings.enableRgbBorder
+                    ? 'bg-gradient-to-r from-cyan-500 via-purple-500 to-emerald-400 text-slate-950 shadow-sm'
+                    : 'bg-slate-800 text-slate-400'
+                }`}>
+                  {localSettings.enableRgbBorder ? 'LIGADO' : 'DESLIGADO'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
-                Ativa uma moldura de luz perimetral sutil e animada nas bordas da janela com gradiente suave.
+              <p className="text-[11px] text-slate-400 leading-relaxed max-w-xl">
+                Quando ativada, projeta uma moldura perimetral luminosa animada nas 4 bordas da tela, adaptando-se instantaneamente à cor do tema ativo. Ao desligar, a moldura é completamente desativada e removida.
               </p>
             </div>
 
-            <label className="relative inline-flex items-center cursor-pointer shrink-0">
-              <input
-                type="checkbox"
-                checked={localSettings.enableRgbBorder}
-                onChange={(e) =>
-                  setLocalSettings({ ...localSettings, enableRgbBorder: e.target.checked })
-                }
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-cyan-500 peer-checked:to-purple-600"></div>
-            </label>
+            <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+              <span className={`text-[11px] font-mono font-semibold ${
+                localSettings.enableRgbBorder ? 'text-cyan-400' : 'text-slate-500'
+              }`}>
+                {localSettings.enableRgbBorder ? 'Borda Ativa' : 'Desativada'}
+              </span>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={localSettings.enableRgbBorder}
+                  onChange={(e) => handleToggleRgbBorder(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-12 h-6.5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-cyan-500 peer-checked:to-purple-600 shadow-inner"></div>
+              </label>
+            </div>
           </div>
         </div>
 

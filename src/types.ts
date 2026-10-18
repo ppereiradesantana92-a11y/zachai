@@ -248,7 +248,15 @@ export interface ProjectTemplate {
   samplePrompt: string;
 }
 
-export type AppTheme = 'neon-blue' | 'cyber-purple' | 'emerald-green';
+export type AppTheme =
+  | 'neon-blue'
+  | 'cyber-purple'
+  | 'emerald-green'
+  | 'crimson-lava'
+  | 'amber-sunset'
+  | 'gold-volts'
+  | 'fuchsia-synthwave'
+  | 'frost-white';
 
 export interface AppSettings {
   preferredModel: string;
