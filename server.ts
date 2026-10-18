@@ -1,10 +1,31 @@
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
-
-dotenv.config();
+import {
+  getAsaasConfig,
+  callAsaasApi,
+  createAsaasPixPayment,
+  createAsaasCardPayment,
+  getAsaasPaymentStatus,
+  dispatchPaymentNotification,
+  registerSseClient,
+  removeSseClient,
+  getPendingNotifications,
+  acknowledgeNotification,
+  calculateCreditsForPlanOrValue,
+} from './src/server/asaasGateway.ts';
+import {
+  sendWelcomeEmail,
+  sendPasswordResetEmail,
+  sendPaymentConfirmationEmail,
+  generatePasswordResetCode,
+  verifyPasswordResetCode,
+  invalidatePasswordResetCode,
+  getResendClient,
+} from './src/server/emailService.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,6 +95,365 @@ app.get(['/download/zachai-dist.zip', '/api/download/zachai-dist.zip'], (_req, r
       }
     }
   });
+});
+
+// ==========================================
+// Rotas Oficiais de Pagamento & Webhook Asaas (API v3)
+// ==========================================
+
+// Configuração pública do Gateway Asaas
+app.get('/api/asaas/config', (req, res) => {
+  const config = getAsaasConfig();
+  const host = req.get('host') || 'localhost:3000';
+  const protocol = req.protocol || 'http';
+  res.json({
+    provider: 'asaas',
+    environment: config.environment,
+    configured: Boolean(config.apiKey && config.apiKey !== 'MY_ASAAS_API_KEY'),
+    baseUrl: config.baseUrl,
+    webhookUrl: `${protocol}://${host}/api/webhooks/asaas`,
+  });
+});
+
+// Diagnóstico de Saldo Asaas Oficial
+app.get('/api/asaas/balance', async (_req, res) => {
+  try {
+    const data = await callAsaasApi('/finance/balance');
+    res.json({ success: true, balance: data.balance || 0 });
+  } catch (err: any) {
+    console.error('[Asaas Balance Error]', err);
+    res.status(500).json({ success: false, error: err?.message || 'Falha ao consultar saldo Asaas' });
+  }
+});
+
+// Checkout Oficial de Pagamentos (PIX e Cartão de Crédito)
+app.post('/api/payments/checkout', async (req, res) => {
+  try {
+    const { plan, customer, method = 'pix', card, userId = 'usr_guest', isSubscription = false } = req.body;
+
+    if (!plan || !customer || !customer.email) {
+      return res.status(400).json({ error: 'Dados do plano e do comprador (e-mail) são obrigatórios.' });
+    }
+
+    console.info(`[Asaas Checkout] Iniciando checkout: Plano "${plan.name}" (R$ ${plan.price}) via ${method.toUpperCase()} para ${customer.email}`);
+
+    if (method === 'pix') {
+      const result = await createAsaasPixPayment({
+        customer,
+        plan,
+        userId,
+      });
+      return res.json(result);
+    } else {
+      if (!card || !card.number || !card.holderName || !card.cvv) {
+        return res.status(400).json({ error: 'Dados do cartão de crédito (número, titular e CVV) são obrigatórios.' });
+      }
+
+      const result = await createAsaasCardPayment({
+        customer,
+        plan,
+        card,
+        userId,
+        isSubscription,
+      });
+      return res.json(result);
+    }
+  } catch (error: any) {
+    console.error('[Asaas Checkout Error]', error);
+    return res.status(error?.status || 500).json({
+      error: error?.message || 'Falha ao processar checkout com a API do Asaas.',
+      details: error?.details,
+    });
+  }
+});
+
+// Consulta de Status de Pagamento no Asaas
+app.get('/api/payments/status/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const statusResult = await getAsaasPaymentStatus(id);
+
+    if (statusResult.isConfirmed && statusResult.externalReference) {
+      const [planId, userId, userEmail] = statusResult.externalReference.split(':');
+      dispatchPaymentNotification({
+        id: `notif_${id}_${Date.now()}`,
+        type: 'PAYMENT_RECEIVED',
+        paymentId: id,
+        value: statusResult.value,
+        credits: statusResult.creditsAwarded,
+        planName: planId || 'Plano Zach AI',
+        userEmail: userEmail || '',
+        userId,
+        billingType: statusResult.billingType || 'PIX',
+        timestamp: new Date().toISOString(),
+      });
+
+      // Disparo automático do E-mail Transacional de Confirmação via Resend
+      if (userEmail && userEmail.includes('@')) {
+        sendPaymentConfirmationEmail({
+          customerEmail: userEmail,
+          planName: planId ? `Plano Zach AI (${planId.toUpperCase()})` : 'Pacote de Créditos Zach AI',
+          amount: statusResult.value,
+          creditsAwarded: statusResult.creditsAwarded,
+          paymentId: id,
+          billingType: statusResult.billingType || 'PIX',
+        }).catch((err) => console.warn('[Asaas Status] Aviso ao disparar e-mail de confirmação Resend:', err));
+      }
+    }
+
+    return res.json(statusResult);
+  } catch (error: any) {
+    console.error('[Asaas Status Error]', error);
+    return res.status(500).json({ error: error?.message || 'Falha ao consultar status da cobrança no Asaas.' });
+  }
+});
+
+// Webhook Oficial do Asaas: Escuta evento PAYMENT_RECEIVED e PAYMENT_CONFIRMED
+app.post(['/api/webhooks/asaas', '/api/webhooks/payment'], (req, res) => {
+  try {
+    const event = req.body;
+    console.info('[Asaas Webhook] Notificação recebida do Asaas:', {
+      event: event?.event,
+      paymentId: event?.payment?.id,
+      value: event?.payment?.value,
+      billingType: event?.payment?.billingType,
+      externalReference: event?.payment?.externalReference,
+    });
+
+    if (event?.event === 'PAYMENT_RECEIVED' || event?.event === 'PAYMENT_CONFIRMED') {
+      const payment = event.payment;
+      const ref = payment.externalReference || '';
+      const [planId, userId, userEmail] = ref.split(':');
+      const credits = calculateCreditsForPlanOrValue(planId, payment.value);
+
+      dispatchPaymentNotification({
+        id: `notif_${payment.id}_${Date.now()}`,
+        type: 'PAYMENT_RECEIVED',
+        paymentId: payment.id,
+        value: payment.value,
+        credits,
+        planName: planId || 'Plano Zach AI',
+        userEmail: userEmail || payment.customer || '',
+        userId,
+        billingType: payment.billingType || 'PIX',
+        timestamp: new Date().toISOString(),
+      });
+
+      console.info(`[Asaas Webhook] Pagamento confirmado com sucesso! Liberados ${credits} créditos para ${userEmail}.`);
+
+      // Disparo automático do E-mail Transacional de Confirmação via Resend
+      const targetEmail = userEmail || payment.customerEmail;
+      if (targetEmail && targetEmail.includes('@')) {
+        sendPaymentConfirmationEmail({
+          customerEmail: targetEmail,
+          customerName: payment.customerName,
+          planName: planId ? `Plano Zach AI (${planId.toUpperCase()})` : 'Pacote de Créditos Zach AI',
+          amount: payment.value,
+          creditsAwarded: credits,
+          paymentId: payment.id,
+          billingType: payment.billingType || 'PIX',
+          invoiceUrl: payment.invoiceUrl || payment.bankSlipUrl,
+        }).catch((err) => console.warn('[Asaas Webhook] Aviso ao disparar e-mail de confirmação Resend:', err));
+      }
+    }
+
+    return res.status(200).json({ received: true, event: event?.event });
+  } catch (error: any) {
+    console.error('[Asaas Webhook Error]', error);
+    return res.status(500).json({ error: error?.message || 'Erro ao processar webhook do Asaas' });
+  }
+});
+
+// Server-Sent Events (SSE) para notificações visuais instantâneas no App
+app.get('/api/payments/sse', (req, res) => {
+  const email = ((req.query.email as string) || '').trim().toLowerCase();
+  const clientId = `sse_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+
+  res.write(`data: ${JSON.stringify({ type: 'CONNECTED', clientId })}\n\n`);
+  registerSseClient(clientId, email, res);
+
+  // Heartbeat para manter a conexão aberta sem timeout
+  const keepAlive = setInterval(() => {
+    try {
+      res.write(': keepalive\n\n');
+    } catch {
+      clearInterval(keepAlive);
+    }
+  }, 20000);
+
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    removeSseClient(clientId);
+  });
+});
+
+// Polling de Notificações Pendentes
+app.get('/api/payments/notifications', (req, res) => {
+  const email = (req.query.email as string) || undefined;
+  const since = (req.query.since as string) || undefined;
+  const list = getPendingNotifications(email, since);
+  res.json({ notifications: list });
+});
+
+// Confirmação de recebimento da notificação pelo frontend
+app.post('/api/payments/notifications/ack', (req, res) => {
+  const { id } = req.body;
+  if (id) {
+    acknowledgeNotification(id);
+  }
+  res.json({ success: true });
+});
+
+// ==========================================
+// Rotas Oficiais de E-mails Transacionais via Resend
+// ==========================================
+
+// Configuração e status do serviço Resend
+app.get('/api/emails/config', (_req, res) => {
+  const { client, fromEmail, apiKey } = getResendClient();
+  res.json({
+    configured: Boolean(client && apiKey && apiKey !== 'MY_RESEND_API_KEY'),
+    fromEmail,
+    provider: 'resend',
+  });
+});
+
+// Envio de E-mail de Boas-Vindas
+app.post('/api/emails/welcome', async (req, res) => {
+  try {
+    const { email, name, credits = 500 } = req.body;
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'E-mail válido é obrigatório.' });
+    }
+
+    const result = await sendWelcomeEmail({
+      name: name || '',
+      email: email.trim().toLowerCase(),
+      credits: Number(credits) || 500,
+    });
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error || 'Falha ao enviar e-mail de boas-vindas.' });
+    }
+
+    return res.json({ success: true, id: result.id, message: 'E-mail de boas-vindas enviado com sucesso.' });
+  } catch (error: any) {
+    console.error('[Resend Welcome Error]', error);
+    return res.status(500).json({ error: error?.message || 'Erro ao processar envio de boas-vindas.' });
+  }
+});
+
+// Solicitação de Recuperação de Senha (Gera código de 6 dígitos e envia por e-mail)
+app.post('/api/emails/password-reset', async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'E-mail válido é obrigatório para recuperação.' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const code = generatePasswordResetCode(cleanEmail);
+
+    const result = await sendPasswordResetEmail({
+      email: cleanEmail,
+      name,
+      code,
+    });
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error || 'Falha ao enviar e-mail de recuperação.' });
+    }
+
+    return res.json({
+      success: true,
+      id: result.id,
+      message: 'Código de recuperação enviado com sucesso para o seu e-mail.',
+    });
+  } catch (error: any) {
+    console.error('[Resend Password Reset Error]', error);
+    return res.status(500).json({ error: error?.message || 'Erro ao processar recuperação de senha.' });
+  }
+});
+
+// Validação do Código de Recuperação de Senha
+app.post('/api/emails/verify-reset-code', (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) {
+    return res.status(400).json({ valid: false, message: 'E-mail e código são obrigatórios.' });
+  }
+
+  const result = verifyPasswordResetCode(email, code);
+  return res.json(result);
+});
+
+// Confirmação final da Redefinição de Senha
+app.post('/api/emails/confirm-password-reset', (req, res) => {
+  const { email, code, newPassword } = req.body;
+  if (!email || !code || !newPassword) {
+    return res.status(400).json({ success: false, message: 'E-mail, código e nova senha são obrigatórios.' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ success: false, message: 'A nova senha deve ter no mínimo 6 caracteres.' });
+  }
+
+  const verification = verifyPasswordResetCode(email, code);
+  if (!verification.valid) {
+    return res.status(400).json({ success: false, message: verification.message });
+  }
+
+  // Invalida o código após validação com sucesso
+  invalidatePasswordResetCode(email);
+
+  return res.json({
+    success: true,
+    message: 'Senha redefinida com sucesso! Você já pode realizar o login com suas novas credenciais.',
+  });
+});
+
+// Disparo Manual ou de Teste de Confirmação de Pagamento Asaas
+app.post('/api/emails/payment-confirmation', async (req, res) => {
+  try {
+    const {
+      customerEmail,
+      customerName,
+      planName = 'Plano Zach AI',
+      amount = 0,
+      creditsAwarded = 0,
+      paymentId = `PAY-${Date.now()}`,
+      billingType = 'PIX',
+      invoiceUrl,
+    } = req.body;
+
+    if (!customerEmail || !customerEmail.includes('@')) {
+      return res.status(400).json({ error: 'E-mail do cliente é obrigatório.' });
+    }
+
+    const result = await sendPaymentConfirmationEmail({
+      customerEmail: customerEmail.trim().toLowerCase(),
+      customerName,
+      planName,
+      amount: Number(amount),
+      creditsAwarded: Number(creditsAwarded),
+      paymentId,
+      billingType,
+      invoiceUrl,
+    });
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error || 'Falha ao enviar confirmação de pagamento.' });
+    }
+
+    return res.json({ success: true, id: result.id, message: 'Comprovante de pagamento enviado com sucesso.' });
+  } catch (error: any) {
+    console.error('[Resend Payment Confirmation Error]', error);
+    return res.status(500).json({ error: error?.message || 'Erro ao processar confirmação de pagamento.' });
+  }
 });
 
 // API Route: Alex Error Diagnosis (Multimodal with images / screenshots)

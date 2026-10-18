@@ -38,6 +38,7 @@ import { CodeConverterView } from './components/views/CodeConverterView';
 import { AdminDashboardView } from './components/views/AdminDashboardView';
 import { AuthModal } from './components/AuthModal';
 import { CheckoutModal } from './components/CheckoutModal';
+import { PaymentNotificationToast } from './components/PaymentNotificationToast';
 import { authService } from './services/authService';
 
 export default function App() {
@@ -1053,6 +1054,9 @@ export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
           setTimeout(() => setCreditNotice(null), 4000);
         }}
       />
+
+      {/* Real-time Visual Toast Pop-up for Asaas Webhook Payments */}
+      <PaymentNotificationToast />
     </div>
   );
 }

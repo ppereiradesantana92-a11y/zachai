@@ -195,6 +195,8 @@ export const billingService = {
       createdAt: new Date().toISOString(),
       cardLast4: cardData?.cardNumber ? cardData.cardNumber.replace(/\s+/g, '').slice(-4) : undefined,
       pixCode: result.pixQrCodeText,
+      pixQrCodeImage: result.pixQrCodeImage,
+      invoiceUrl: result.invoiceUrl,
     };
 
     transactions.unshift(newTransaction);

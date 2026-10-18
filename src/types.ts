@@ -393,6 +393,8 @@ export interface PaymentTransaction {
   status: 'approved' | 'pending' | 'failed';
   pixCode?: string;
   pixQrCodeUrl?: string;
+  pixQrCodeImage?: string;
+  invoiceUrl?: string;
   createdAt: string;
   cardLast4?: string;
 }

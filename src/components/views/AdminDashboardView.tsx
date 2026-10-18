@@ -57,10 +57,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [copiedWebhook, setCopiedWebhook] = useState(false);
 
   // Gateway Config state
-  const [gatewayConfig, setGatewayConfig] = useState<GatewayConfig>(paymentGatewayService.getConfig());
-  const [gatewayApiKey, setGatewayApiKey] = useState(gatewayConfig.apiKey || '');
-  const [gatewayWebhookSecret, setGatewayWebhookSecret] = useState(gatewayConfig.webhookSecret || '');
-  const [gatewaySavedMessage, setGatewaySavedMessage] = useState<string | null>(null);
+  const [gatewayConfig, setGatewayConfig] = useState<GatewayConfig>({
+    provider: 'asaas',
+    environment: 'production',
+    configured: true,
+    webhookUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/asaas` : 'https://zach.ai/api/webhooks/asaas',
+  });
+  const [asaasBalance, setAsaasBalance] = useState<number | null>(null);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
 
   // Credit injection state
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>(billingService.getManagedUsers());
@@ -77,6 +82,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const supabaseDiag = getSupabaseDiagnosticStatus();
 
   useEffect(() => {
+    paymentGatewayService
+      .getConfig()
+      .then((cfg) => setGatewayConfig(cfg))
+      .catch(() => {});
+
     const unsubscribe = authService.subscribe((u) => {
       setCurrentUser(u);
     });
@@ -103,17 +113,22 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     }
   };
 
-  const handleSaveGateway = (e: React.FormEvent) => {
-    e.preventDefault();
-    const updated = paymentGatewayService.updateConfig({
-      provider: gatewayConfig.provider,
-      environment: gatewayConfig.environment,
-      apiKey: gatewayApiKey.trim() || undefined,
-      webhookSecret: gatewayWebhookSecret.trim() || undefined,
-    });
-    setGatewayConfig(updated);
-    setGatewaySavedMessage('Configuração do gateway atualizada com sucesso.');
-    setTimeout(() => setGatewaySavedMessage(null), 3000);
+  const handleCheckAsaasBalance = async () => {
+    setIsLoadingBalance(true);
+    setBalanceError(null);
+    try {
+      const res = await fetch('/api/asaas/balance');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAsaasBalance(data.balance);
+      } else {
+        setBalanceError(data.error || 'Falha ao buscar saldo Asaas');
+      }
+    } catch (e: any) {
+      setBalanceError(e?.message || 'Erro de conexão com o servidor');
+    } finally {
+      setIsLoadingBalance(false);
+    }
   };
 
   const handleInjectCredits = async (e: React.FormEvent) => {
@@ -293,76 +308,21 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-cyan-400" />
-                <h2 className="text-sm font-bold text-white">Integração de Pagamentos Oficiais</h2>
+                <h2 className="text-sm font-bold text-white">Integração Asaas Oficial (API v3)</h2>
               </div>
-              <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono uppercase">
-                {gatewayConfig.provider} ({gatewayConfig.environment})
+              <span className="text-[10px] bg-teal-500/20 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded font-mono uppercase">
+                PRODUÇÃO ATIVA
               </span>
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              Estrutura de webhook preparada para gateways oficiais (Asaas e Mercado Pago) com conciliação automática de PIX dinâmico e Cartão de Crédito.
+              Gateway conectado diretamente aos servidores do Asaas (<code className="text-teal-300">https://www.asaas.com/api/v3/</code>). Webhook configurado para creditação instantânea no evento <code className="text-cyan-300">PAYMENT_RECEIVED</code>.
             </p>
 
-            <form onSubmit={handleSaveGateway} className="space-y-3 pt-1">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-300 mb-1">
-                    Gateway Provedor
-                  </label>
-                  <select
-                    value={gatewayConfig.provider}
-                    onChange={(e) =>
-                      setGatewayConfig({
-                        ...gatewayConfig,
-                        provider: e.target.value as 'asaas' | 'mercadopago',
-                      })
-                    }
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-xs text-white focus:border-cyan-500 focus:outline-none"
-                  >
-                    <option value="asaas">Asaas (Recomendado)</option>
-                    <option value="mercadopago">Mercado Pago</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-300 mb-1">
-                    Ambiente
-                  </label>
-                  <select
-                    value={gatewayConfig.environment}
-                    onChange={(e) =>
-                      setGatewayConfig({
-                        ...gatewayConfig,
-                        environment: e.target.value as 'sandbox' | 'production',
-                      })
-                    }
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-xs text-white focus:border-cyan-500 focus:outline-none"
-                  >
-                    <option value="production">Produção Oficial</option>
-                    <option value="sandbox">Sandbox (Testes)</option>
-                  </select>
-                </div>
-              </div>
-
+            <div className="space-y-3 pt-1">
               <div>
                 <label className="block text-[11px] font-medium text-slate-300 mb-1">
-                  Chave de API / Access Token
-                </label>
-                <div className="relative">
-                  <KeyRound className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-500" />
-                  <input
-                    type="password"
-                    value={gatewayApiKey}
-                    onChange={(e) => setGatewayApiKey(e.target.value)}
-                    placeholder="$aact_YTU5YTE0M2M6N2Nm..."
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950 py-1.5 pl-8 pr-3 text-xs text-white placeholder-slate-600 focus:border-cyan-500 focus:outline-none font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-slate-300 mb-1">
-                  URL Oficial de Webhook (Copie para seu Painel do Gateway)
+                  URL Oficial de Webhook (Cadastre no Painel do Asaas)
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -381,20 +341,46 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 </div>
               </div>
 
-              {gatewaySavedMessage && (
-                <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-2 text-xs text-emerald-300">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>{gatewaySavedMessage}</span>
+              {/* Consulta de Saldo em Tempo Real */}
+              <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-teal-400" />
+                    <span>Saldo na Conta Asaas Oficial:</span>
+                  </span>
+                  {asaasBalance !== null && (
+                    <span className="font-mono font-bold text-sm text-emerald-400">
+                      R$ {asaasBalance.toFixed(2)}
+                    </span>
+                  )}
                 </div>
-              )}
 
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 py-2 text-xs font-bold text-white shadow-sm hover:opacity-95 transition-all"
-              >
-                Salvar Configurações do Gateway
-              </button>
-            </form>
+                {balanceError && (
+                  <p className="text-[11px] text-rose-400">{balanceError}</p>
+                )}
+
+                <button
+                  type="button"
+                  disabled={isLoadingBalance}
+                  onClick={handleCheckAsaasBalance}
+                  className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-teal-500/30 bg-teal-500/10 py-1.5 text-xs font-semibold text-teal-300 hover:bg-teal-500/20 transition-all disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3 w-3 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+                  <span>{isLoadingBalance ? 'Consultando Asaas...' : 'Verificar Saldo Atual no Asaas'}</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+                <div className="rounded border border-slate-800 bg-slate-950 p-2">
+                  <div className="text-slate-500">Chave API:</div>
+                  <div className="text-emerald-400 font-mono font-semibold">Configurada (.env)</div>
+                </div>
+                <div className="rounded border border-slate-800 bg-slate-950 p-2">
+                  <div className="text-slate-500">Ambiente:</div>
+                  <div className="text-cyan-300 font-mono font-semibold">Produção Oficial</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Database Diagnostics */}

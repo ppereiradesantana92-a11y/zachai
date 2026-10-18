@@ -8,6 +8,7 @@ import {
   INITIAL_SYNC_CREDITS,
   MAX_SYNC_CREDITS,
 } from '../lib/supabaseClient';
+import { emailService } from './emailService';
 
 export const SUPREME_OWNER_EMAIL = 'ppereiradesantana92@gmail.com';
 export const SUPREME_OWNER_NAME = 'Pedro Henrique';
@@ -364,6 +365,27 @@ export const authService = {
     };
 
     this.setCurrentUser(newUser);
+
+    // Disparo automático em background do E-mail de Boas-Vindas oficial via Resend
+    if (data.email && data.email.includes('@')) {
+      emailService
+        .sendWelcomeEmail({
+          email: data.email,
+          name: data.name,
+          credits: newUser.credits,
+        })
+        .then((res) => {
+          if (res.success) {
+            console.info('[authService] E-mail de boas-vindas Resend disparado com sucesso para:', data.email);
+          } else {
+            console.debug('[authService] Status de envio de boas-vindas:', res.error);
+          }
+        })
+        .catch((err) => {
+          console.debug('[authService] Aviso ao disparar e-mail de boas-vindas:', err);
+        });
+    }
+
     return newUser;
   },
 
@@ -476,6 +498,28 @@ export const authService = {
         console.error('Error notifying user listener', e);
       }
     });
+  },
+
+  /**
+   * Solicita o envio de e-mail de recuperação de senha via Resend
+   */
+  async requestPasswordReset(email: string, name?: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    return emailService.requestPasswordReset({ email, name });
+  },
+
+  /**
+   * Valida o código e confirma a redefinição de senha
+   */
+  async confirmPasswordReset(params: {
+    email: string;
+    code: string;
+    newPassword: string;
+  }): Promise<{ success: boolean; message: string }> {
+    // Também sincroniza a nova senha com o Supabase Auth caso o usuário esteja registrado lá
+    if (params.newPassword && params.newPassword.length >= 6) {
+      supabase.auth.updateUser({ password: params.newPassword }).catch(() => {});
+    }
+    return emailService.confirmPasswordReset(params);
   },
 };
 
