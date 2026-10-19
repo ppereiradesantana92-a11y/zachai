@@ -68,7 +68,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onOpenInPlayground,
 }) => {
   const [inputText, setInputText] = useState('');
-  const [executionMode, setExecutionMode] = useState<ExecutionMode>('planning');
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>('direct');
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [codeContext, setCodeContext] = useState('');
   const [attachedImage, setAttachedImage] = useState<{
@@ -692,47 +692,75 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }`}
       >
         <form onSubmit={handleSubmit} className="mx-auto max-w-4xl">
-          {/* Active Mode Notice Banner above composer */}
-          <div className="mb-2.5 flex items-center justify-between rounded-lg border border-[#172545] bg-[#081024] px-3 py-1.5 text-xs">
+          {/* Active Mode Notice Banner & Direct Mode Switcher */}
+          <div className="mb-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-lg border border-[#172545] bg-[#081024] p-2 text-xs">
             <div className="flex items-center gap-2">
               {executionMode === 'agent' ? (
                 <>
                   <Cpu className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
-                  <span className="text-cyan-300 font-semibold">Modo Agente Ativo:</span>
-                  <span className="text-slate-300 hidden sm:inline">
-                    Alex decomporá sua solicitação em subtarefas sequenciais com logs e progresso visual em tempo real.
+                  <span className="text-cyan-300 font-semibold">Modo Agente Autônomo:</span>
+                  <span className="text-slate-300 hidden sm:inline text-[11px]">
+                    Subtarefas encadeadas com logs de execução em tempo real.
                   </span>
                 </>
               ) : executionMode === 'planning' ? (
                 <>
-                  <Compass className="h-3.5 w-3.5 text-cyan-400" />
-                  <span className="text-cyan-300 font-semibold">Modo de Planejamento Ativo:</span>
-                  <span className="text-slate-300 hidden sm:inline">
-                    Alex NÃO gerará código imediatamente. Ele projetará Escopo, Arquivos e Roadmap primeiro.
+                  <Compass className="h-3.5 w-3.5 text-amber-400" />
+                  <span className="text-amber-300 font-semibold">Modo Planejamento (Projetos Complexos):</span>
+                  <span className="text-slate-300 hidden sm:inline text-[11px]">
+                    Alex projeta Escopo, Arquitetura e Roadmap antes de codificar.
                   </span>
                 </>
               ) : (
                 <>
-                  <Code2 className="h-3.5 w-3.5 text-teal-400" />
-                  <span className="text-teal-300 font-semibold">Modo Código Direto:</span>
-                  <span className="text-slate-300 hidden sm:inline">
-                    Respostas técnicas com código gerado diretamente.
+                  <Code2 className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="text-emerald-300 font-semibold">Modo Código Direto (Padrão):</span>
+                  <span className="text-slate-300 hidden sm:inline text-[11px]">
+                    Gera e entrega o código solicitado imediatamente na linguagem indicada.
                   </span>
                 </>
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                if (executionMode === 'agent') setExecutionMode('planning');
-                else if (executionMode === 'planning') setExecutionMode('direct');
-                else setExecutionMode('agent');
-              }}
-              className="text-[11px] font-semibold text-cyan-400 hover:text-cyan-200 underline"
-            >
-              Alternar Modo ({executionMode === 'agent' ? 'Agente' : executionMode === 'planning' ? 'Planejamento' : 'Direto'})
-            </button>
+            {/* Segmented Mode Selector Buttons */}
+            <div className="flex items-center gap-1 self-end sm:self-auto bg-slate-950/80 p-0.5 rounded-md border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setExecutionMode('direct')}
+                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
+                  executionMode === 'direct'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Gera código instantaneamente sem exigir planejamento"
+              >
+                Código Direto
+              </button>
+              <button
+                type="button"
+                onClick={() => setExecutionMode('planning')}
+                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
+                  executionMode === 'planning'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Para projetos e arquiteturas complexas em 3 fases"
+              >
+                Planejamento
+              </button>
+              <button
+                type="button"
+                onClick={() => setExecutionMode('agent')}
+                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
+                  executionMode === 'agent'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Orquestração autônoma de tarefas sequenciais"
+              >
+                Agente
+              </button>
+            </div>
           </div>
 
           {/* Image Thumbnail Preview before send */}

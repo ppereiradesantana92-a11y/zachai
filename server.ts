@@ -729,27 +729,65 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Mensagem ou imagem é obrigatória.' });
     }
 
-    const isPlanningMode = mode === 'planning';
+    const promptText = (message || '').trim();
+    const promptLower = promptText.toLowerCase();
+
+    // 1. Detecção inteligente da linguagem solicitada explicitamente no prompt
+    let targetLanguage = language;
+    if (/\b(html5?|p[aá]gina html|c[oó]digo html|arquivo html|tag html|tabela html|formul[aá]rio html|bot[aã]o html)\b/i.test(promptText)) {
+      targetLanguage = 'HTML';
+    } else if (/\b(css3?|estilo css|folha de estilo)\b/i.test(promptText)) {
+      targetLanguage = 'CSS';
+    } else if (/\b(javascript|vanilla js|js puro)\b/i.test(promptText)) {
+      targetLanguage = 'JavaScript';
+    } else if (/\b(python3?|script python|c[oó]digo python|django|flask|fastapi)\b/i.test(promptText)) {
+      targetLanguage = 'Python';
+    } else if (/\b(sql|query sql|consulta sql|postgresql|mysql|sqlite)\b/i.test(promptText)) {
+      targetLanguage = 'SQL';
+    } else if (/\b(php|script php|laravel)\b/i.test(promptText)) {
+      targetLanguage = 'PHP';
+    } else if (/\b(java(?!script)|spring boot)\b/i.test(promptText)) {
+      targetLanguage = 'Java';
+    } else if (/\b(c#|csharp|\.net|dotnet)\b/i.test(promptText)) {
+      targetLanguage = 'C#';
+    } else if (/\b(golang|linguagem go)\b/i.test(promptText)) {
+      targetLanguage = 'Go';
+    } else if (/\b(rust|c[oó]digo rust)\b/i.test(promptText)) {
+      targetLanguage = 'Rust';
+    }
+
+    // 2. Classificação de complexidade: tarefas simples NUNCA exigem planejamento
+    const isSimple =
+      /\b(simples|b[aá]sico|bot[aã]o|hello world|snippet|exemplo|fun[cç][aã]o|tag|card|formul[aá]rio simples)\b/i.test(promptLower) ||
+      (promptLower.length < 100 && !/\b(arquitetura|planeje|microsservi[cç]o|sistema completo|monorepo)\b/i.test(promptLower));
+
+    // O Modo Planejamento só deve ser ativado se for explicitamente solicitado E a tarefa for complexa
+    const isPlanningMode = mode === 'planning' && !isSimple;
 
     const systemInstruction = `Você é o ZachAI & Alex — Engenheiro de Software Sênior e Arquiteto de Sistemas.
-Linguagem ativa configurada: ${language}.
+Linguagem solicitada e ativa: ${targetLanguage}.
 ${projectMemoryContext ? `\nContexto de Memória Persistente do Projeto:\n${projectMemoryContext}\n` : ''}
 ${
   isPlanningMode
-    ? `ATENÇÃO: O MODO DE PLANEJAMENTO (ARCHITECT MODE) ESTÁ ATIVO!
-REGRA ABSOLUTA: NÃO GERE CÓDIGO FONTE IMEDIATAMENTE!
-Em vez de programar diretamente, analise o pedido do usuário e elabore o planejamento em 3 fases:
+    ? `ATENÇÃO: O MODO DE PLANEJAMENTO (ARCHITECT MODE) ESTÁ ATIVO PARA ESTA TAREFA COMPLEXA DE ARQUITETURA!
+Elabore o planejamento em 3 fases:
 1. Fase 1: Escopo e Requisitos (Objetivos claros, funcionalidades principais e stack recomendada)
 2. Fase 2: Arquitetura de Pastas e Arquivos (Diagrama de responsabilidades)
 3. Fase 3: Roteiro Ordenado de Desenvolvimento (Checklist em etapas)
 Peça a validação do usuário antes de iniciar a codificação.`
-    : `Estruture suas respostas com explicações claras, blocos de código defensivos e bem formatados, e comentários úteis.`
+    : `O MODO CÓDIGO DIRETO ESTÁ ATIVO.
+REGRA ABSOLUTA: Gere e entregue o código solicitado IMEDIATAMENTE em ${targetLanguage}, completo, semântico e funcional.
+NÃO exija aprovação de plano nem crie barreiras de planejamento.
+Se a linguagem for HTML, entregue estritamente código HTML/HTML5 puro e moderno (com CSS e JavaScript embutidos se necessário), sem forçar TypeScript, React ou módulos externos desnecessários.
+Respeite rigorosamente a linguagem que o usuário pediu (${targetLanguage}).
+Formate o código utilizando bloco markdown apropriado (\`\`\`${targetLanguage.toLowerCase()} ... \`\`\`).
+Forneça uma explicação concisa e prática da solução entregue.`
 }`;
 
     // Helper to generate a structured ArchitecturePlan fallback
     const createFallbackPlan = (promptText: string) => {
       const lower = (promptText || '').toLowerCase();
-      let title = 'Arquitetura de Solução em ' + language;
+      let title = 'Arquitetura de Solução em ' + targetLanguage;
       if (lower.includes('auth') || lower.includes('login')) title = 'Arquitetura: Autenticação Segura & RBAC';
       else if (lower.includes('ecommerce') || lower.includes('loja')) title = 'Arquitetura: E-Commerce Modular com Catálogo e Checkout';
       else if (lower.includes('api') || lower.includes('crud')) title = 'Arquitetura: API RESTful com Validação & Camada de Serviços';
@@ -757,7 +795,7 @@ Peça a validação do usuário antes de iniciar a codificação.`
       return {
         id: `plan-${Date.now()}`,
         title,
-        summary: `Plano arquitetural projetado pelo Alex para "${promptText.slice(0, 80)}...". Focado em modularidade, separação de responsabilidades e tipagem estrita com ${language}.`,
+        summary: `Plano arquitetural projetado pelo Alex para "${promptText.slice(0, 80)}...". Focado em modularidade, separação de responsabilidades e tipagem estrita com ${targetLanguage}.`,
         scope: {
           objectives: [
             'Projetar arquitetura desacoplada e de alta manutenibilidade',
@@ -770,19 +808,17 @@ Peça a validação do usuário antes de iniciar a codificação.`
             'Componentes ou rotas com feedback visual e estados de erro/loading',
             'Persistência previsível e testes facilitados por baixo acoplamento',
           ],
-          recommendedTech: [language, 'Clean Architecture', 'TypeScript/Type Safety', 'Test-Driven Structure'],
+          recommendedTech: [targetLanguage, 'Clean Architecture', 'Type Safety', 'Test-Driven Structure'],
         },
         fileArchitecture: [
-          { path: `src/types/contracts.${language.toLowerCase() === 'python' ? 'py' : 'ts'}`, purpose: 'Interfaces, DTOs e tipagem dos modelos de dados', layer: 'types' as const },
-          { path: `src/services/businessService.${language.toLowerCase() === 'python' ? 'py' : 'ts'}`, purpose: 'Regras de negócio, cálculos e validações centrais', layer: 'service' as const },
-          { path: `src/ui/components.${language.toLowerCase() === 'python' ? 'py' : 'tsx'}`, purpose: 'Interface de usuário ou endpoints expostos com validação defensiva', layer: 'ui' as const },
-          { path: `src/config/settings.${language.toLowerCase() === 'python' ? 'py' : 'ts'}`, purpose: 'Variáveis de ambiente, constantes e inicializadores', layer: 'config' as const },
+          { path: `src/types/contracts.${targetLanguage.toLowerCase() === 'python' ? 'py' : targetLanguage.toLowerCase() === 'html' ? 'html' : 'ts'}`, purpose: 'Estruturas, DTOs e contratos essenciais', layer: 'types' as const },
+          { path: `src/services/businessService.${targetLanguage.toLowerCase() === 'python' ? 'py' : 'ts'}`, purpose: 'Regras de negócio e operações centrais', layer: 'service' as const },
+          { path: `src/ui/components.${targetLanguage.toLowerCase() === 'python' ? 'py' : targetLanguage.toLowerCase() === 'html' ? 'html' : 'tsx'}`, purpose: 'Interface de usuário com validação defensiva', layer: 'ui' as const },
         ],
         roadmapSteps: [
-          { stepNumber: 1, title: 'Definição de Tipos e Contratos', description: 'Mapear estruturas de dados e tipagens para garantir consistência estrita.', targetFiles: [`src/types/contracts.${language.toLowerCase() === 'python' ? 'py' : 'ts'}`] },
-          { stepNumber: 2, title: 'Implementação da Camada de Serviços', description: 'Construir a lógica central desacoplada de frameworks ou drivers externos.', targetFiles: [`src/services/businessService.${language.toLowerCase() === 'python' ? 'py' : 'ts'}`] },
-          { stepNumber: 3, title: 'Construção da Interface / Endpoints', description: 'Integrar a camada visual ou rotas com feedback e tratamento de exceções.', targetFiles: [`src/ui/components.${language.toLowerCase() === 'python' ? 'py' : 'tsx'}`] },
-          { stepNumber: 4, title: 'Validação e Testes de Integração', description: 'Validar cenários de sucesso e caminhos de falha antes da entrega final.', targetFiles: [] },
+          { stepNumber: 1, title: 'Definição de Estrutura e Contratos', description: 'Mapear estruturas para consistência estrita.', targetFiles: [] },
+          { stepNumber: 2, title: 'Implementação da Lógica Central', description: 'Construir a lógica central desacoplada.', targetFiles: [] },
+          { stepNumber: 3, title: 'Construção da Interface / Componentes', description: 'Integrar a camada visual com feedback.', targetFiles: [] },
         ],
         status: 'draft' as const,
         createdAt: new Date().toISOString(),
@@ -794,17 +830,81 @@ Peça a validação do usuário antes de iniciar a codificação.`
       if (isPlanningMode) {
         const plan = createFallbackPlan(message);
         return res.json({
-          content: `🎯 **Modo de Planejamento Ativado (Architect Mode)**\n\nAnalisei sua solicitação para **${language}**: "${message}".\n\nConforme o protocolo do ZachAI Architect, **o código NÃO foi gerado imediatamente**. Em vez disso, projetei a especificação técnica completa abaixo (Escopo & Requisitos, Diagrama de Pastas/Arquivos e Roteiro Ordenado).\n\nRevise o plano abaixo e clique em **"Aprovar Plano e Iniciar Programação"** para autorizar o Alex a escrever a implementação completa!`,
+          content: `🎯 **Modo de Planejamento Ativado (Architect Mode)**\n\nAnalisei sua solicitação para **${targetLanguage}**: "${message}".\n\nConforme o protocolo do ZachAI Architect para tarefas complexas, projetei a especificação técnica completa abaixo.\n\nRevise o plano abaixo e clique em **"Aprovar Plano e Iniciar Programação"** para autorizar o Alex a escrever a implementação completa!`,
           plan,
         });
       }
 
+      // No modo direto, se for HTML, entrega o HTML limpo e completo
+      if (targetLanguage === 'HTML' || promptLower.includes('html')) {
+        return res.json({
+          content: `Aqui está o código HTML5 completo e semântico solicitado:\n\n* **Estrutura**: HTML5 padrão com viewport e charset UTF-8;\n* **Estilo**: CSS embutido com tema dark futurista e card centralizado;\n* **Interatividade**: Botão funcional com feedback de clique.`,
+          codeSnippet: {
+            language: 'html',
+            filename: 'index.html',
+            code: `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Página Simples - Zach AI</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #050813;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: #0b1224;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 32px;
+      max-width: 480px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    h1 { color: #38bdf8; margin-top: 0; font-size: 24px; }
+    p { color: #94a3b8; font-size: 14px; line-height: 1.6; }
+    button {
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      color: #070b19;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      margin-top: 16px;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    button:hover { opacity: 0.95; transform: scale(1.02); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Olá Mundo em HTML!</h1>
+    <p>Esta é uma estrutura HTML5 limpa, semântica e pronta para uso gerada pelo ZachAI.</p>
+    <button onclick="alert('Botão HTML clicado com sucesso!')">Clique Aqui</button>
+  </div>
+</body>
+</html>`,
+          },
+        });
+      }
+
       return res.json({
-        content: `Resposta do ZachAI (${language}): ${message}\n\n*(Nota: O servidor backend está pronto e comunicando via rota proxy segura /api/chat. Para conectar o modelo real, configure a GEMINI_API_KEY).*`,
+        content: `Resposta do ZachAI (${targetLanguage}): ${message}\n\n*(Nota: O servidor backend está pronto e comunicando via rota proxy segura /api/chat. Para conectar o modelo real, configure a GEMINI_API_KEY).*`,
         codeSnippet: codeSnippet
           ? {
-              language: language.toLowerCase(),
-              filename: `exemplo.${language.toLowerCase() === 'python' ? 'py' : 'ts'}`,
+              language: targetLanguage.toLowerCase(),
+              filename: `exemplo.${targetLanguage.toLowerCase() === 'python' ? 'py' : targetLanguage.toLowerCase() === 'html' ? 'html' : 'ts'}`,
               code: codeSnippet,
             }
           : undefined,
@@ -823,12 +923,14 @@ Peça a validação do usuário antes de iniciar a codificação.`
       });
     }
 
-    let fullPrompt = `Linguagem: ${language}\nSolicitação do usuário: ${message}`;
+    let fullPrompt = `Linguagem solicitada: ${targetLanguage}\nSolicitação do usuário: ${message}`;
     if (codeSnippet) {
-      fullPrompt += `\nCódigo anexo:\n\`\`\`${language}\n${codeSnippet}\n\`\`\``;
+      fullPrompt += `\nCódigo anexo:\n\`\`\`${targetLanguage}\n${codeSnippet}\n\`\`\``;
     }
     if (isPlanningMode) {
-      fullPrompt += `\nLembre-se: Você está no MODO DE PLANEJAMENTO. Descreva a análise arquitetural e NÃO gere o código final completo neste momento.`;
+      fullPrompt += `\nLembre-se: Você está no MODO DE PLANEJAMENTO para esta tarefa complexa. Descreva a análise arquitetural em 3 fases.`;
+    } else {
+      fullPrompt += `\nLembre-se: Você está no MODO CÓDIGO DIRETO. Gere o código solicitado completo em ${targetLanguage} em um bloco de código markdown.`;
     }
 
     parts.push({ text: fullPrompt });
@@ -844,10 +946,26 @@ Peça a validação do usuário antes de iniciar a codificação.`
     let extractedSnippet: { language: string; code: string; filename?: string } | undefined;
     const codeMatch = responseText.match(/```([a-zA-Z0-9#+_-]+)?\s*([\s\S]*?)```/);
     if (codeMatch) {
+      const codeLang = (codeMatch[1] || targetLanguage).toLowerCase();
+      let ext = '.ts';
+      let fname = 'solucao.ts';
+      if (codeLang.includes('html')) { ext = '.html'; fname = 'index.html'; }
+      else if (codeLang.includes('css')) { ext = '.css'; fname = 'styles.css'; }
+      else if (codeLang.includes('py')) { ext = '.py'; fname = 'app.py'; }
+      else if (codeLang.includes('js')) { ext = '.js'; fname = 'script.js'; }
+      else if (codeLang.includes('sql')) { ext = '.sql'; fname = 'query.sql'; }
+      else if (codeLang.includes('json')) { ext = '.json'; fname = 'data.json'; }
+      else if (codeLang.includes('php')) { ext = '.php'; fname = 'index.php'; }
+      else if (codeLang.includes('java')) { ext = '.java'; fname = 'Main.java'; }
+      else if (codeLang.includes('cs') || codeLang.includes('csharp')) { ext = '.cs'; fname = 'Program.cs'; }
+      else if (codeLang.includes('cpp') || codeLang.includes('c++')) { ext = '.cpp'; fname = 'main.cpp'; }
+      else if (codeLang.includes('go')) { ext = '.go'; fname = 'main.go'; }
+      else if (codeLang.includes('rs') || codeLang.includes('rust')) { ext = '.rs'; fname = 'main.rs'; }
+
       extractedSnippet = {
-        language: codeMatch[1] || language.toLowerCase(),
+        language: codeLang,
         code: codeMatch[2].trim(),
-        filename: `solucao.${(codeMatch[1] || language).toLowerCase() === 'python' ? 'py' : 'ts'}`,
+        filename: fname,
       };
     }
 

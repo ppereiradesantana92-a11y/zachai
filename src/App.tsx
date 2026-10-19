@@ -41,6 +41,11 @@ import { CheckoutModal } from './components/CheckoutModal';
 import { PaymentNotificationToast } from './components/PaymentNotificationToast';
 import { authService } from './services/authService';
 import { getThemeConfig, applyThemeGlobalStyles } from './services/themeService';
+import {
+  detectLanguageFromPrompt,
+  isSimpleCodeRequest,
+  isComplexArchitecturalRequest,
+} from './utils/languageDetector';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<NavigationTab>('home');
@@ -103,7 +108,8 @@ export default function App() {
   const generateStructuredAssistantReply = (
     userPrompt: string,
     attachedCode?: string,
-    mode: ExecutionMode = 'direct'
+    mode: ExecutionMode = 'direct',
+    targetLang: string = selectedLanguage
   ): ChatMessage => {
     const lower = userPrompt.toLowerCase();
     const timestamp = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -263,15 +269,20 @@ export default function App() {
       };
     }
 
-    // Planning Mode (Architect Mode): DO NOT generate code immediately
-    if (mode === 'planning') {
+    const isHtml =
+      targetLang.toLowerCase() === 'html' ||
+      /\b(html5?|c[oó]digo html|arquivo html|p[aá]gina html|tag html|tabela html|formul[aá]rio html|bot[aã]o html)\b/i.test(userPrompt);
+
+    // Planning Mode (Architect Mode): Reservado exclusivamente para tarefas complexas.
+    // Tarefas simples NÃO exigem planejamento e avançam para a entrega direta de código.
+    if (mode === 'planning' && !isSimpleCodeRequest(userPrompt)) {
       const plan: ArchitecturePlan = {
         id: `plan-${Date.now()}`,
         title: `Plano Arquitetural: ${userPrompt.slice(0, 50)}...`,
-        summary: `Estruturação técnica projetada pelo Alex. Arquitetura orientada a camadas desacopladas, tipagem estrita e separação de responsabilidades em ${selectedLanguage}.`,
+        summary: `Estruturação técnica projetada pelo Alex. Arquitetura orientada a camadas desacopladas e padrões modernos em ${targetLang}.`,
         scope: {
           objectives: [
-            `Construir arquitetura escalável e defensiva para ${selectedLanguage}`,
+            `Construir arquitetura escalável e defensiva para ${targetLang}`,
             'Garantir isolamento estrito entre regras de negócio, dados e apresentação',
             'Facilitar testes unitários e manutenibilidade através de desacoplamento',
           ],
@@ -281,53 +292,42 @@ export default function App() {
             'Componentes modulares com tratamento de loading e erro',
             'Persistência e estado previsível',
           ],
-          recommendedTech: [selectedLanguage, 'Clean Architecture', 'TypeScript / Strict Mode', 'Tailwind CSS'],
+          recommendedTech: [targetLang, 'Clean Architecture', 'Modular Design'],
         },
         fileArchitecture: [
           {
-            path: `src/types/models.${selectedLanguage.toLowerCase() === 'python' ? 'py' : 'ts'}`,
-            purpose: 'Tipos e contratos de dados essenciais',
+            path: `src/types/models.${targetLang.toLowerCase() === 'python' ? 'py' : targetLang.toLowerCase() === 'html' ? 'html' : 'ts'}`,
+            purpose: 'Tipos e contratos essenciais',
             layer: 'types',
           },
           {
-            path: `src/services/apiService.${selectedLanguage.toLowerCase() === 'python' ? 'py' : 'ts'}`,
+            path: `src/services/apiService.${targetLang.toLowerCase() === 'python' ? 'py' : 'ts'}`,
             purpose: 'Camada de comunicação e regras de negócio',
             layer: 'service',
           },
           {
-            path: `src/components/MainView.${selectedLanguage.toLowerCase() === 'python' ? 'py' : 'tsx'}`,
+            path: `src/components/MainView.${targetLang.toLowerCase() === 'python' ? 'py' : targetLang.toLowerCase() === 'html' ? 'html' : 'tsx'}`,
             purpose: 'Interface principal responsiva com feedback visual',
             layer: 'ui',
-          },
-          {
-            path: `src/config/appConfig.${selectedLanguage.toLowerCase() === 'python' ? 'py' : 'ts'}`,
-            purpose: 'Configurações de ambiente e constantes',
-            layer: 'config',
           },
         ],
         roadmapSteps: [
           {
             stepNumber: 1,
             title: 'Definição de Tipos e Contratos',
-            description: 'Declarar interfaces e contratos de dados essenciais.',
-            targetFiles: [`src/types/models.${selectedLanguage.toLowerCase() === 'python' ? 'py' : 'ts'}`],
+            description: 'Declarar interfaces e contratos essenciais.',
+            targetFiles: [],
           },
           {
             stepNumber: 2,
             title: 'Implementação da Camada de Negócio',
             description: 'Criar funções de serviço e regras de validação defensivas.',
-            targetFiles: [`src/services/apiService.${selectedLanguage.toLowerCase() === 'python' ? 'py' : 'ts'}`],
+            targetFiles: [],
           },
           {
             stepNumber: 3,
             title: 'Construção da Camada Visual/Rotas',
             description: 'Montar componentes com tratamento de erros e feedbacks.',
-            targetFiles: [`src/components/MainView.${selectedLanguage.toLowerCase() === 'python' ? 'py' : 'tsx'}`],
-          },
-          {
-            stepNumber: 4,
-            title: 'Validação e Testes Finais',
-            description: 'Revisão defensiva e testes de ponta a ponta.',
             targetFiles: [],
           },
         ],
@@ -339,13 +339,136 @@ export default function App() {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `🎯 **Modo de Planejamento Ativado (Architect Mode)**\n\nAnalisei o seu pedido para **${selectedLanguage}**: "${userPrompt}".\n\nConforme a diretriz do Arquiteto Zach, **o código NÃO foi gerado imediatamente**. Em vez disso, projetei a especificação técnica em 3 fases abaixo:\n\n1. **Fase 1: Escopo e Requisitos** (Objetivos, funcionalidades e stack);\n2. **Fase 2: Arquitetura de Pastas e Arquivos** (Diagrama de responsabilidades);\n3. **Fase 3: Roteiro Ordenado de Execução** (Passos de desenvolvimento ordenados).\n\nRevise a estrutura e clique em **"Aprovar Plano e Iniciar Programação"** para eu escrever a implementação completa de código!`,
+        content: `🎯 **Modo de Planejamento Ativado (Architect Mode)**\n\nAnalisei o seu pedido para **${targetLang}**: "${userPrompt}".\n\nConforme a diretriz do Arquiteto Zach para projetos complexos, projetei a especificação técnica em 3 fases abaixo:\n\n1. **Fase 1: Escopo e Requisitos** (Objetivos, funcionalidades e stack);\n2. **Fase 2: Arquitetura de Pastas e Arquivos** (Diagrama de responsabilidades);\n3. **Fase 3: Roteiro Ordenado de Execução** (Passos de desenvolvimento ordenados).\n\nRevise a estrutura e clique em **"Aprovar Plano e Iniciar Programação"** para eu escrever a implementação completa de código!`,
         plan,
       };
     }
 
-    // Category 1: Criar sites / landing page / API
-    if (lower.includes('site') || lower.includes('landing') || lower.includes('página') || lower.includes('dashboard') || lower.includes('api')) {
+    // Se o usuário solicitou código HTML, entrega o HTML5 completo imediatamente sem exigir planejamento
+    if (isHtml) {
+      return {
+        id: `msg-${Date.now()}`,
+        sender: 'assistant',
+        timestamp,
+        content: `Aqui está o código HTML5 completo, semântico e estilizado solicitado:\n\n* **Semântica**: Estrutura HTML5 com meta tags, viewport responsiva e acessibilidade;\n* **Estilo**: CSS embutido com tema dark futurista e card centralizado;\n* **Interatividade**: Script funcional com feedback de clique e contador dinâmico.`,
+        codeSnippet: {
+          language: 'html',
+          filename: 'index.html',
+          code: `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Página Simples - Zach AI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #050813;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: rgba(11, 18, 36, 0.85);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: 16px;
+      padding: 36px 32px;
+      max-width: 460px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(6, 182, 212, 0.15);
+      backdrop-filter: blur(12px);
+    }
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #38bdf8;
+      background: rgba(14, 165, 233, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 4px 12px;
+      border-radius: 9999px;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p {
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      color: #030712;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 12px 28px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+      transition: all 0.2s ease;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.45);
+    }
+    .btn:active {
+      transform: translateY(0);
+    }
+    #counter {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #38bdf8;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="tag">HTML5 Puro</span>
+    <h1>Estrutura HTML Simples</h1>
+    <p>Esta é uma página HTML5 limpa, sem dependências externas e com design responsivo, gerada diretamente pelo Zach AI.</p>
+    <button class="btn" onclick="handleClick()">
+      <span>Clique Aqui</span>
+    </button>
+    <div id="counter"></div>
+  </div>
+
+  <script>
+    let clicks = 0;
+    function handleClick() {
+      clicks++;
+      const counter = document.getElementById('counter');
+      counter.textContent = 'Cliques registrados: ' + clicks;
+    }
+  </script>
+</body>
+</html>`,
+        },
+      };
+    }
+
+    // Category 1: Criar sites / landing page / API em React e TypeScript (quando solicitado)
+    if (!isHtml && (lower.includes('site') || lower.includes('landing') || lower.includes('dashboard') || lower.includes('api'))) {
       return {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
@@ -487,6 +610,21 @@ export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
     setLastSubmittedPrompt({ text: content, code: codeSnippet });
     setLastSubmittedImage(imageAttachment || null);
 
+    // 1. Detecção automática da linguagem explícita citada no prompt
+    const detectedLang = detectLanguageFromPrompt(content, selectedLanguage);
+    const effectiveLanguage = detectedLang.detected ? detectedLang.name : selectedLanguage;
+    if (detectedLang.detected && detectedLang.name !== selectedLanguage) {
+      setSelectedLanguage(detectedLang.name);
+    }
+
+    // 2. Classificação de complexidade & garantia do Modo Código Direto
+    const isSimple = isSimpleCodeRequest(content);
+    const isComplex = isComplexArchitecturalRequest(content);
+    // Modo Código Direto gera direto sem exigir planejamento.
+    // Modo Planejamento só é mantido se for explicitamente solicitado E a tarefa for complexa (não simples).
+    const effectiveMode: ExecutionMode =
+      mode === 'planning' && isSimple && !isComplex ? 'direct' : mode;
+
     const userMessage: ChatMessage = {
       id: `msg-user-${Date.now()}`,
       sender: 'user',
@@ -494,9 +632,9 @@ export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
       imageAttachment,
       codeSnippet: codeSnippet
         ? {
-            language: selectedLanguage.toLowerCase(),
+            language: effectiveLanguage.toLowerCase(),
             code: codeSnippet,
-            filename: `anexo-codigo.${selectedLanguage.toLowerCase() === 'python' ? 'py' : 'ts'}`,
+            filename: `anexo-codigo.${effectiveLanguage.toLowerCase() === 'python' ? 'py' : effectiveLanguage.toLowerCase() === 'html' ? 'html' : 'ts'}`,
           }
         : undefined,
       timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
@@ -522,11 +660,11 @@ export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
       const memoryContext = projectMemoryService.getMemoryPromptContext();
       const response = await sendChatMessage({
         message: content || 'Analise visualmente o código ou erro no print anexado e forneça solução.',
-        language: selectedLanguage,
+        language: effectiveLanguage,
         codeSnippet,
         imageBase64: imageAttachment?.dataUrl,
         mimeType: imageAttachment?.mimeType,
-        mode,
+        mode: effectiveMode,
         projectMemoryContext: memoryContext,
       });
 
@@ -543,7 +681,7 @@ export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
       if (response.codeSnippet?.filename) {
         projectMemoryService.recordFileModified(
           response.codeSnippet.filename,
-          `Gerado pelo Alex (${selectedLanguage})`
+          `Gerado pelo Alex (${effectiveLanguage})`
         );
       }
 
@@ -561,7 +699,12 @@ export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
     } catch (err: any) {
       console.error('[Chat API Error]', err);
       // Fallback gracefully so the experience is never broken
-      const fallbackAssistantMessage = generateStructuredAssistantReply(content, codeSnippet, mode);
+      const fallbackAssistantMessage = generateStructuredAssistantReply(
+        content,
+        codeSnippet,
+        effectiveMode,
+        effectiveLanguage
+      );
       setSessions((prevSessions) =>
         prevSessions.map((s) =>
           s.id === activeSession.id

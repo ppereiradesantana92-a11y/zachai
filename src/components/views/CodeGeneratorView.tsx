@@ -46,6 +46,11 @@ import { AgentPlanViewer } from '../AgentPlanViewer';
 import { ProjectMemoryModal } from '../ProjectMemoryModal';
 import { CodeBlock } from '../CodeBlock';
 
+import {
+  detectLanguageFromPrompt,
+  isSimpleCodeRequest,
+} from '../../utils/languageDetector';
+
 interface CodeGeneratorViewProps {
   onOpenProjectInStudio?: (files: Array<{ name: string; content: string; language?: string }>) => void;
   onOpenSingleFileInStudio?: (code: string, filename: string) => void;
@@ -53,6 +58,8 @@ interface CodeGeneratorViewProps {
 }
 
 const FRAMEWORK_OPTIONS = [
+  'HTML5 + CSS3 + JavaScript Puro (Vanilla Web)',
+  'HTML5 Semântico + Tailwind CSS',
   'React 19 + Tailwind CSS + TypeScript',
   'Next.js (App Router) + TypeScript + Tailwind',
   'Node.js + Express + TypeScript (Clean Architecture)',
@@ -100,8 +107,8 @@ export const CodeGeneratorView: React.FC<CodeGeneratorViewProps> = ({
   onOpenInChat,
 }) => {
   const [prompt, setPrompt] = useState('');
-  const [executionMode, setExecutionMode] = useState<ExecutionMode>('planning');
-  const [selectedFramework, setSelectedFramework] = useState(FRAMEWORK_OPTIONS[0]);
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>('direct');
+  const [selectedFramework, setSelectedFramework] = useState(FRAMEWORK_OPTIONS[2] || FRAMEWORK_OPTIONS[0]);
   const [selectedArchitecture, setSelectedArchitecture] = useState(ARCHITECTURE_OPTIONS[0]);
   const [selectedSeparation, setSelectedSeparation] = useState(SEPARATION_OPTIONS[0]);
   const [includeBackend, setIncludeBackend] = useState(false);
@@ -142,25 +149,42 @@ export const CodeGeneratorView: React.FC<CodeGeneratorViewProps> = ({
     setIsLoading(true);
     setErrorMessage(null);
 
+    // Detecção inteligente de linguagem solicitada no prompt
+    let effectiveFramework = selectedFramework;
+    const detectedLang = detectLanguageFromPrompt(prompt.trim());
+    if (detectedLang.detected) {
+      if (detectedLang.name === 'HTML') {
+        effectiveFramework = 'HTML5 + CSS3 + JavaScript Puro (Vanilla Web)';
+      } else if (detectedLang.name === 'Python') {
+        effectiveFramework = 'Python + FastAPI + SQLAlchemy';
+      }
+    }
+
+    const isSimple = isSimpleCodeRequest(prompt.trim());
+    // Se o usuário estiver no modo planejamento, mas a tarefa for simples e direta de código,
+    // não bloqueamos com planejamento desnecessário; geramos o código diretamente.
+    const effectiveMode: ExecutionMode =
+      executionMode === 'planning' && isSimple ? 'direct' : executionMode;
+
     try {
-      if (executionMode === 'agent') {
+      if (effectiveMode === 'agent') {
         // Agent Mode: Decompose into sequential subtasks
-        const agentPlan = await decomposeRequestWithAgent(prompt.trim(), selectedFramework);
+        const agentPlan = await decomposeRequestWithAgent(prompt.trim(), effectiveFramework);
         setCurrentAgentPlan(agentPlan);
         setCurrentPlan(null);
         setGeneratedProject(null);
-      } else if (executionMode === 'planning') {
-        // Planning Mode: DO NOT generate code immediately. Design architecture plan first.
-        const plan = await planArchitectureProject(prompt.trim(), selectedFramework);
+      } else if (effectiveMode === 'planning') {
+        // Planning Mode: Reservado para arquiteturas e tarefas complexas.
+        const plan = await planArchitectureProject(prompt.trim(), effectiveFramework);
         setCurrentPlan(plan);
         setCurrentAgentPlan(null);
         setGeneratedProject(null);
       } else {
-        // Direct Code Mode: Generate code files directly
+        // Direct Code Mode: Gera arquivos e código imediatamente sem exigir planejamento
         const memoryContext = projectMemoryService.getMemoryPromptContext();
         const result = await generateFullProject({
           prompt: prompt.trim(),
-          framework: selectedFramework,
+          framework: effectiveFramework,
           architecture: selectedArchitecture,
           includeBackend,
           fileSeparation: selectedSeparation,
