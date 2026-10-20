@@ -354,7 +354,7 @@ export default function App() {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `Aqui está o código HTML5 completo, semântico e estilizado solicitado:\n\n* **Semântica**: Estrutura HTML5 com meta tags, viewport responsiva e acessibilidade;\n* **Estilo**: CSS embutido com tema dark futurista e card centralizado;\n* **Interatividade**: Script funcional com feedback de clique e contador dinâmico.`,
+        content: '',
         codeSnippet: {
           language: 'html',
           filename: 'index.html',
@@ -477,7 +477,7 @@ export default function App() {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `Aqui está a solução completa e funcional em **Python** solicitado:\n\n* **Padrões**: Código idiomático, com tipagem (módulo typing), docstrings explicativas e tratamento de exceções;\n* **Execução**: Pronto para executar via linha de comando ou incorporar ao seu backend.`,
+        content: '',
         codeSnippet: {
           language: 'python',
           filename: 'main.py',
@@ -519,7 +519,7 @@ if __name__ == "__main__":
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `Aqui está a folha de estilos **CSS** moderna e responsiva:\n\n* **Variáveis CSS**: Paleta dark moderna com alto contraste e tokens reutilizáveis;\n* **Flexbox/Grid**: Layout responsivo com transições suaves.`,
+        content: '',
         codeSnippet: {
           language: 'css',
           filename: 'styles.css',
@@ -571,7 +571,7 @@ body {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `Aqui está o código **JavaScript (Vanilla)** limpo e funcional:\n\n* **Modularidade**: Funções utilitárias limpas com manipulação reativa do DOM e Promises;\n* **Resiliência**: Tratamento de exceções com try/catch e logs defensivos.`,
+        content: '',
         codeSnippet: {
           language: 'javascript',
           filename: 'script.js',
@@ -610,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `Aqui está a estrutura e query **SQL** otimizada:\n\n* **DDL & DML**: Criação de tabelas com chaves primárias, índices de performance e consultas otimizadas.`,
+        content: '',
         codeSnippet: {
           language: 'sql',
           filename: 'query.sql',
@@ -640,7 +640,7 @@ LIMIT 20;
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `Aqui está a estrutura de dados **JSON** semântica e válida:\n\n* **Padronização**: Formatação estrita com tipagem consistente para APIs e configurações.`,
+        content: '',
         codeSnippet: {
           language: 'json',
           filename: 'data.json',
@@ -668,32 +668,25 @@ LIMIT 20;
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `Com certeza! Estruturei uma solução moderna com **React 19**, **Tailwind CSS** e tipagem estrita em **TypeScript**.\n\nAqui estão os pontos principais da arquitetura recomendada:\n1. **Design System**: Fundo dark navy (\`#050813\`), contrastes em ciano e azul elétrico;\n2. **Componentização Modular**: Separação clara entre Hero, Features e Call-to-Action;\n3. **Acessibilidade**: Conformidade com contraste WCAG AA e navegação fluida por teclado.`,
+        content: '',
         codeSnippet: {
           language: 'typescript',
           filename: 'src/components/ModernHero.tsx',
           code: `import React from 'react';
-import { ArrowRight, Sparkles, Terminal } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 
 export function ModernHero() {
   return (
     <section className="relative overflow-hidden bg-[#050813] py-20 px-6 text-slate-100">
       <div className="mx-auto max-w-5xl text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-950/30 px-3 py-1 text-xs text-cyan-300">
-          <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-          <span>Solução de Próxima Geração</span>
-        </div>
-
-        <h1 className="mt-6 text-4xl font-extrabold tracking-tight sm:text-6xl text-white">
+        <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl text-white">
           Desenvolvimento acelerado com precisão arquitetural.
         </h1>
-
         <p className="mx-auto mt-4 max-w-2xl text-sm sm:text-base text-slate-300 leading-relaxed">
-          Crie aplicações web escaláveis, mantenha código legível e elimine vulnerabilidades antes do deploy.
+          Crie aplicações web escaláveis com tipagem estrita e sem dependências supérfluas.
         </p>
-
         <div className="mt-8 flex justify-center gap-3">
-          <button className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02]">
+          <button className="flex items-center gap-2 rounded-lg bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/25 transition-all hover:bg-cyan-400">
             <span>Começar Agora</span>
             <ArrowRight className="h-4 w-4" />
           </button>
@@ -714,7 +707,7 @@ export function ModernHero() {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `Excelente pergunta técnica! Vamos desmembrar esse conceito para facilitar a implementação em **${targetLang}**.\n\n* **Conceito Chave**: Evitar execuções redundantes ou bloqueios desnecessários enquanto garantimos a integridade do estado;\n* **Boas Práticas**: Isolar a lógica em funções puras ou módulos desacoplados na sintaxe de **${targetLang}**;\n* **Padrão Recomendado**: Padrões idiomáticos, legibilidade e testes fáceis.`,
+        content: `Conceito e padrão recomendado em **${targetLang}**:\n- **Princípio**: Isolamento de efeitos colaterais e garantia de estado idempotente;\n- **Padrão**: Funções puras e tipagem defensiva.`,
         codeSnippet: {
           language: codeLang,
           filename: `exemplo${ext}`,
@@ -735,7 +728,7 @@ export function ModernHero() {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `Diagnóstico realizado com sucesso pelo motor ZachAI para **${targetLang}**!\n\n**Causa Raiz Identificada:**\nO erro decorre de uma referência nula no ciclo de inicialização ou de restrições de chamada assíncrona.\n\n**Correção Aplicada:**\n1. Foi adicionada validação prévia de tipo e existência de dados;\n2. Criamos uma barreira defensiva com fallback seguro.`,
+        content: `Correção recomendada para **${targetLang}**:\n- Causa: referência nula ou validação pendente de payload;\n- Solução: barreira defensiva com fallback seguro.`,
         codeSnippet: {
           language: codeLang,
           filename: `safePatch${ext}`,
@@ -753,7 +746,7 @@ export function ModernHero() {
       id: `msg-${Date.now()}`,
       sender: 'assistant',
       timestamp,
-      content: `Aqui está o código solicitado em **${targetLang}**:\n\n* **Linguagem**: ${targetLang} (Padrões idiomáticos e modernos);\n* **Estrutura**: Código limpo, pronto para teste e execução imediata.`,
+      content: '',
       codeSnippet: attachedCode
         ? {
             language: codeLang,
@@ -1124,10 +1117,10 @@ export function ModernHero() {
         )}
 
         {/* Phase 1 Integration Info Banner */}
-        <IntegrationBanner onOpenSettings={() => setCurrentTab('settings')} />
+        {currentTab !== 'chat' && <IntegrationBanner onOpenSettings={() => setCurrentTab('settings')} />}
 
         {/* Dynamic Views */}
-        <main className="flex-1 overflow-y-auto">
+        <main className={`flex-1 ${currentTab === 'chat' ? 'overflow-hidden flex flex-col min-h-0' : 'overflow-y-auto'}`}>
           {currentTab === 'home' && (
             <HomeView
               onSubmitPrompt={handlePromptFromHome}

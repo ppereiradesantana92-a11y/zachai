@@ -761,19 +761,19 @@ Linguagem solicitada e ativa: ${targetLanguage}.
 ${projectMemoryContext ? `\nContexto de Memória Persistente do Projeto:\n${projectMemoryContext}\n` : ''}
 ${
   isPlanningMode
-    ? `ATENÇÃO: O MODO DE PLANEJAMENTO (ARCHITECT MODE) ESTÁ ATIVO PARA ESTA TAREFA COMPLEXA DE ARQUITETURA!
-Elabore o planejamento em 3 fases:
-1. Fase 1: Escopo e Requisitos (Objetivos claros, funcionalidades principais e stack recomendada)
+    ? `MODO DE PLANEJAMENTO ATIVO (ARCHITECT MODE):
+Estruture o planejamento em 3 fases objetivas:
+1. Fase 1: Escopo e Requisitos (Objetivos claros e stack recomendada)
 2. Fase 2: Arquitetura de Pastas e Arquivos (Diagrama de responsabilidades)
 3. Fase 3: Roteiro Ordenado de Desenvolvimento (Checklist em etapas)
-Peça a validação do usuário antes de iniciar a codificação.`
-    : `O MODO CÓDIGO DIRETO ESTÁ ATIVO.
-REGRA ABSOLUTA: Gere e entregue o código solicitado IMEDIATAMENTE no primeiro turno em ${targetLanguage}, completo, semântico e funcional.
-NÃO exija aprovação de plano, não crie barreiras de planejamento nem responda apenas com explicações teóricas sem o código.
-Se a linguagem for HTML, entregue estritamente código HTML/HTML5 puro e completo com <!DOCTYPE html> (incluindo estilos <style> e scripts <script> embutidos se necessário), sem forçar TypeScript, React ou módulos externos desnecessários.
-Respeite rigorosamente a linguagem que o usuário pediu (${targetLanguage}).
-Formate o código utilizando bloco markdown apropriado (\`\`\`${targetLanguage.toLowerCase()} ... \`\`\`).
-Forneça uma explicação concisa e prática da solução entregue.`
+Mantenha o foco estrito em engenharia.`
+    : `MODO CÓDIGO DIRETO ATIVO:
+REGRAS OBRIGATÓRIAS:
+- Seja ESTRITAMENTE DIRETO AO PONTO. Sem enrolação, sem saudações e sem preâmbulos.
+- PROIBIDO qualquer tipo de preâmbulo longo, genérico ou tom robótico de inteligência artificial (NUNCA inicie com frases como "Aqui está o código completo...", "Com certeza!", "Certamente!", "Com prazer!", "Como assistente de IA...", "Segue o código solicitado:").
+- Quando o usuário pedir um código, entregue IMEDIATAMENTE o bloco de código funcional e limpo na linguagem solicitada (${targetLanguage}) usando bloco markdown (\`\`\`${targetLanguage.toLowerCase()} ... \`\`\`).
+- NÃO inclua explicações teóricas desnecessárias ou listas redundantes de tópicos antes ou depois do código. Entregue o código pronto para uso.
+- Se a linguagem for HTML, entregue estritamente código HTML/HTML5 puro e completo com <!DOCTYPE html> (incluindo estilos <style> e scripts <script> embutidos se necessário), sem forçar TypeScript, React ou módulos externos desnecessários.`
 }`;
 
     // Helper to generate a structured ArchitecturePlan fallback
@@ -830,7 +830,7 @@ Forneça uma explicação concisa e prática da solução entregue.`
       // No modo direto, se for HTML, entrega o HTML limpo e completo imediatamente
       if (targetLanguage === 'HTML' || promptLower.includes('html')) {
         return res.json({
-          content: `Aqui está o código HTML5 completo e semântico solicitado:\n\n* **Estrutura**: HTML5 padrão com viewport e charset UTF-8;\n* **Estilo**: CSS embutido com tema dark futurista e card centralizado;\n* **Interatividade**: Botão funcional com feedback de clique.`,
+          content: '',
           codeSnippet: {
             language: 'html',
             filename: 'index.html',
@@ -894,7 +894,7 @@ Forneça uma explicação concisa e prática da solução entregue.`
       // No modo direto, se for Python
       if (targetLanguage === 'Python' || promptLower.includes('python')) {
         return res.json({
-          content: `Aqui está o código Python limpo e funcional solicitado:\n\n* **Padrões**: Código idiomático com docstrings e estrutura modular pronta para uso.`,
+          content: '',
           codeSnippet: {
             language: 'python',
             filename: 'main.py',
@@ -915,7 +915,7 @@ if __name__ == "__main__":
       // No modo direto, se for CSS
       if (targetLanguage === 'CSS' || promptLower.includes('css')) {
         return res.json({
-          content: `Aqui está a folha de estilos CSS moderna:\n\n* **Estilo**: Variáveis CSS com tema dark moderno e layout centralizado.`,
+          content: '',
           codeSnippet: {
             language: 'css',
             filename: 'styles.css',
@@ -940,7 +940,7 @@ body {
       // No modo direto, se for JavaScript
       if (targetLanguage === 'JavaScript' || promptLower.includes('javascript')) {
         return res.json({
-          content: `Aqui está o código JavaScript solicitado:\n\n* **Padrões**: Sintaxe ES6+ moderna e pronta para testes.`,
+          content: '',
           codeSnippet: {
             language: 'javascript',
             filename: 'script.js',
@@ -954,7 +954,7 @@ console.log('[ZachAI] Script executado com sucesso.');
       // No modo direto, se for SQL
       if (targetLanguage === 'SQL' || promptLower.includes('sql')) {
         return res.json({
-          content: `Aqui está a query SQL solicitada:\n\n* **Estrutura**: Sintaxe SQL padrão pronta para banco relacional.`,
+          content: '',
           codeSnippet: {
             language: 'sql',
             filename: 'query.sql',
@@ -968,7 +968,7 @@ SELECT * FROM users ORDER BY id DESC LIMIT 10;
       // No modo direto, se for JSON
       if (targetLanguage === 'JSON' || promptLower.includes('json')) {
         return res.json({
-          content: `Aqui está o JSON estruturado:\n\n* **Formato**: JSON padrão válido.`,
+          content: '',
           codeSnippet: {
             language: 'json',
             filename: 'data.json',
@@ -979,7 +979,7 @@ SELECT * FROM users ORDER BY id DESC LIMIT 10;
 
       const fallbackExt = getExtensionForLanguage(targetLanguage);
       return res.json({
-        content: `Resposta do ZachAI (${targetLanguage}): ${message}\n\n*(Nota: O servidor backend está pronto e comunicando via rota proxy segura /api/chat. Para conectar o modelo real, configure a GEMINI_API_KEY).*`,
+        content: '',
         codeSnippet: codeSnippet
           ? {
               language: targetLanguage.toLowerCase(),
@@ -1087,8 +1087,25 @@ SELECT * FROM users ORDER BY id DESC LIMIT 10;
       };
     }
 
+    // Limpeza rigorosa de preâmbulos genéricos e tom robótico de IA
+    let cleanContent = responseText;
+    if (extractedSnippet) {
+      // Remove frases introdutórias robóticas como "Aqui está o código...", "Certamente!", "Com certeza!..."
+      cleanContent = cleanContent
+        .replace(/^(aqui está|certamente|com certeza|com prazer|claro|segue abaixo|segue o c[oó]digo|ol[aá])[^\n]*\n+/i, '')
+        .trim();
+      // Remove o bloco de código redundante do texto se ele foi extraído como snippet principal
+      cleanContent = cleanContent
+        .replace(/```[a-zA-Z0-9#+_-]*\s*[\s\S]*?```/, '')
+        .trim();
+      // Remove cabeçalhos redundantes como "### Explicação da Solução:" se o usuário apenas pediu código
+      cleanContent = cleanContent
+        .replace(/^(###?\s*)?(explica[cç][aã]o da solu[cç][aã]o|explica[cç][aã]o|como funciona|observa[cç][õo]es?|notas?):?\s*/i, '')
+        .trim();
+    }
+
     return res.json({
-      content: responseText,
+      content: cleanContent,
       codeSnippet: extractedSnippet,
     });
   } catch (error: any) {

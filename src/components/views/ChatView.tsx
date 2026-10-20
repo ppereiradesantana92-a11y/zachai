@@ -383,7 +383,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col bg-[#050813]">
+    <div className="flex flex-1 h-full min-h-0 flex-col bg-[#050813] relative overflow-hidden">
       {/* Hidden File Input for Image Upload */}
       <input
         ref={fileInputRef}
@@ -402,139 +402,116 @@ export const ChatView: React.FC<ChatViewProps> = ({
         onClose={() => setIsMemoryModalOpen(false)}
       />
 
-      {/* Chat Sub-Header with Alex AI Specialist Banner */}
-      <div className="border-b border-[#141e34] bg-[#070c1b]/95 backdrop-blur-sm">
-        {/* Top Feature Subtitle Banner */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#121a2f] px-4 py-2 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 p-0.5 shadow-sm shadow-cyan-500/20">
-              <div className="flex h-full w-full items-center justify-center rounded-[6px] bg-[#070c1b]">
-                <Bot className="h-4 w-4 text-cyan-400" />
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold tracking-tight text-white sm:text-sm">
-                  Alex AI
-                </span>
-                <span className="flex items-center gap-1 rounded bg-cyan-950/70 border border-cyan-500/30 px-1.5 py-0.2 text-[10px] font-semibold text-cyan-300">
-                  <Sparkles className="h-2.5 w-2.5" />
-                  Multimodal
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium">
-                Alex AI — Especialista em Análise, Correção de Erros e Prints de Código
-              </p>
+      {/* Gemini-Style Clean Header Bar */}
+      <header className="shrink-0 flex items-center justify-between border-b border-[#141e34]/80 bg-[#070c1b]/95 px-4 py-2.5 sm:px-6 backdrop-blur-md z-10">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 p-0.5 shadow-sm shadow-cyan-500/20">
+            <div className="flex h-full w-full items-center justify-center rounded-[6px] bg-[#070c1b]">
+              <Bot className="h-4 w-4 text-cyan-400" />
             </div>
           </div>
-
-          {/* Top Actions: Mode Selector & Project Memory */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Direct Code vs Planning vs Agent Toggle */}
-            <div className="inline-flex rounded-lg border border-[#172646] bg-[#050917] p-0.5 shadow-inner">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold tracking-tight text-white">Alex AI</span>
               <button
                 type="button"
-                onClick={() => setExecutionMode('agent')}
-                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-bold transition-all ${
-                  executionMode === 'agent'
-                    ? 'bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-400 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Modo Agente: decompõe a tarefa em subtarefas sequenciais com logs e progresso visual"
+                onClick={onNavigateToLanguages}
+                className="text-xs text-cyan-400/90 hover:text-cyan-300 font-mono transition-colors"
+                title="Clique para alternar a linguagem / stack ativa"
               >
-                <Cpu className="h-3 w-3" />
-                <span>Modo Agente</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setExecutionMode('planning')}
-                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-bold transition-all ${
-                  executionMode === 'planning'
-                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Modo de Planejamento: a IA projeta escopo, arquivos e roteiro antes de codificar"
-              >
-                <Compass className="h-3 w-3" />
-                <span>Modo Planejamento</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setExecutionMode('direct')}
-                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-bold transition-all ${
-                  executionMode === 'direct'
-                    ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Modo Código Direto: gera trechos de código imediatamente"
-              >
-                <Code2 className="h-3 w-3" />
-                <span>Código Direto</span>
+                · {selectedLanguageName}
               </button>
             </div>
-
-            {/* Project Memory Button */}
-            <button
-              type="button"
-              onClick={() => setIsMemoryModalOpen(true)}
-              className="flex items-center gap-1.5 rounded border border-cyan-500/30 bg-[#081329] px-2.5 py-1 text-[11px] font-semibold text-cyan-300 hover:border-cyan-400 hover:bg-cyan-950/60 transition-colors"
-              title="Ver histórico de decisões de arquitetura e arquivos modificados salvos pelo Alex"
-            >
-              <BrainCircuit className="h-3.5 w-3.5 text-cyan-400" />
-              <span>Memória ({memoryState.decisions.length})</span>
-            </button>
-
-            {/* Language badge */}
-            <button
-              onClick={onNavigateToLanguages}
-              type="button"
-              className="flex items-center gap-1 rounded border border-[#1a2b4b] bg-[#0c1630] px-2.5 py-1 font-mono text-[11px] text-cyan-300 hover:border-cyan-400 transition-colors"
-              title="Clique para alternar a linguagem ativa"
-            >
-              <span className="text-slate-400">Stack:</span>
-              <span className="font-bold text-white">{selectedLanguageName}</span>
-            </button>
           </div>
         </div>
 
-        {/* Action Controls Bar */}
-        <div className="flex items-center justify-between px-4 py-1.5 sm:px-6 text-xs text-slate-400">
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-mono text-[11px] text-slate-300">
-              {executionMode === 'planning'
-                ? 'Architect Mode ativo — As respostas estruturam Escopo, Diagrama de Pastas e Roteiro de Execução'
-                : 'Pronto para texto, trechos de código e prints (Ctrl+V)'}
+        {/* Compact Right Controls */}
+        <div className="flex items-center gap-2">
+          {/* Direct Code vs Planning vs Agent Segmented Pill */}
+          <div className="inline-flex rounded-lg border border-[#172646] bg-[#050917] p-0.5">
+            <button
+              type="button"
+              onClick={() => setExecutionMode('direct')}
+              className={`flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium transition-all ${
+                executionMode === 'direct'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Modo Código Direto: gera e entrega código imediatamente"
+            >
+              <Code2 className="h-3 w-3" />
+              <span className="hidden sm:inline">Código Direto</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setExecutionMode('planning')}
+              className={`flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium transition-all ${
+                executionMode === 'planning'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Modo Planejamento: arquitetura em fases antes de codificar"
+            >
+              <Compass className="h-3 w-3" />
+              <span className="hidden sm:inline">Planejamento</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setExecutionMode('agent')}
+              className={`flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium transition-all ${
+                executionMode === 'agent'
+                  ? 'bg-teal-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Modo Agente: execução com subtarefas sequenciais"
+            >
+              <Cpu className="h-3 w-3" />
+              <span className="hidden sm:inline">Agente</span>
+            </button>
+          </div>
+
+          {/* Project Memory Button */}
+          <button
+            type="button"
+            onClick={() => setIsMemoryModalOpen(true)}
+            className="flex items-center gap-1 rounded-md border border-cyan-500/20 bg-[#081329] px-2 py-1 text-xs text-cyan-300 hover:border-cyan-400/50 transition-colors"
+            title="Memória do Projeto"
+          >
+            <BrainCircuit className="h-3.5 w-3.5 text-cyan-400" />
+            <span className="hidden md:inline">Memória</span>
+            <span className="rounded-full bg-cyan-950 px-1 text-[10px] font-mono text-cyan-300">
+              {memoryState.decisions.length}
             </span>
-          </div>
+          </button>
 
-          <div className="flex items-center gap-2">
-            {messages.length > 1 && (
-              <button
-                onClick={handleExport}
-                type="button"
-                className="flex items-center gap-1.5 rounded bg-[#0e162d] px-2.5 py-1 text-xs font-medium text-slate-300 transition-colors hover:bg-cyan-950 hover:text-cyan-300"
-              >
-                <Download className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Exportar Markdown</span>
-              </button>
-            )}
-
+          {/* Export & Clear Actions */}
+          {messages.length > 1 && (
             <button
-              onClick={onClearChat}
+              onClick={handleExport}
               type="button"
-              className="flex items-center gap-1.5 rounded bg-[#0e162d] px-2.5 py-1 text-xs font-medium text-slate-400 transition-colors hover:bg-rose-950/60 hover:text-rose-300"
+              aria-label="Exportar Markdown"
+              title="Exportar conversa em Markdown"
+              className="rounded p-1.5 text-slate-400 hover:bg-[#0e162d] hover:text-cyan-300 transition-colors"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Limpar conversa</span>
+              <Download className="h-3.5 w-3.5" />
             </button>
-          </div>
-        </div>
-      </div>
+          )}
 
-      {/* Messages Thread Container */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-        <div className="mx-auto max-w-4xl space-y-6">
+          <button
+            onClick={onClearChat}
+            type="button"
+            aria-label="Limpar conversa"
+            title="Limpar conversa"
+            className="rounded p-1.5 text-slate-400 hover:bg-rose-950/40 hover:text-rose-300 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </header>
+
+      {/* Messages Thread Container (Gemini-Style with Generous Bottom Padding) */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 scroll-smooth">
+        <div className="mx-auto max-w-3xl space-y-6 pb-48 sm:pb-56">
           {messages.map((message) => {
             const isUser = message.sender === 'user';
 
@@ -561,7 +538,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   {/* Sender Metadata Bar */}
                   <div className="mb-2 flex items-center justify-between text-[11px] text-slate-400">
                     <span className="font-semibold text-slate-300">
-                      {isUser ? 'Você' : 'ZachAI · Alex Multimodal'}
+                      {isUser ? 'Você' : 'Alex AI'}
                     </span>
                     <span className="font-mono text-slate-500">
                       {message.timestamp}
@@ -584,9 +561,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   )}
 
                   {/* Message Content */}
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
-                    {message.content}
-                  </div>
+                  {message.content && message.content.trim() ? (
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
+                      {message.content}
+                    </div>
+                  ) : null}
 
                   {/* Interactive Architecture Plan Viewer (Planning Mode Output) */}
                   {message.plan && (
@@ -688,102 +667,31 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       </div>
 
-      {/* Input Composer Area with Drag & Drop & Paste Support */}
+      {/* Floating Gemini-Style Input Composer */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`border-t border-[#141e34] bg-[#070c1b] p-4 sm:px-6 transition-colors ${
-          isDraggingOver ? 'bg-cyan-950/30 border-cyan-500/50' : ''
+        className={`absolute bottom-0 left-0 right-0 z-20 pointer-events-none px-3 pb-3 sm:px-6 sm:pb-5 pt-6 bg-gradient-to-t from-[#050813] via-[#050813]/95 to-transparent transition-colors ${
+          isDraggingOver ? 'from-cyan-950/80' : ''
         }`}
       >
-        <form onSubmit={handleSubmit} className="mx-auto max-w-4xl">
-          {/* Active Mode Notice Banner & Direct Mode Switcher */}
-          <div className="mb-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-lg border border-[#172545] bg-[#081024] p-2 text-xs">
-            <div className="flex items-center gap-2">
-              {executionMode === 'agent' ? (
-                <>
-                  <Cpu className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
-                  <span className="text-cyan-300 font-semibold">Modo Agente Autônomo:</span>
-                  <span className="text-slate-300 hidden sm:inline text-[11px]">
-                    Subtarefas encadeadas com logs de execução em tempo real.
-                  </span>
-                </>
-              ) : executionMode === 'planning' ? (
-                <>
-                  <Compass className="h-3.5 w-3.5 text-amber-400" />
-                  <span className="text-amber-300 font-semibold">Modo Planejamento (Projetos Complexos):</span>
-                  <span className="text-slate-300 hidden sm:inline text-[11px]">
-                    Alex projeta Escopo, Arquitetura e Roadmap antes de codificar.
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Code2 className="h-3.5 w-3.5 text-emerald-400" />
-                  <span className="text-emerald-300 font-semibold">Modo Código Direto (Padrão):</span>
-                  <span className="text-slate-300 hidden sm:inline text-[11px]">
-                    Gera e entrega o código solicitado imediatamente na linguagem indicada.
-                  </span>
-                </>
-              )}
-            </div>
-
-            {/* Segmented Mode Selector Buttons */}
-            <div className="flex items-center gap-1 self-end sm:self-auto bg-slate-950/80 p-0.5 rounded-md border border-slate-800">
-              <button
-                type="button"
-                onClick={() => setExecutionMode('direct')}
-                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
-                  executionMode === 'direct'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Gera código instantaneamente sem exigir planejamento"
-              >
-                Código Direto
-              </button>
-              <button
-                type="button"
-                onClick={() => setExecutionMode('planning')}
-                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
-                  executionMode === 'planning'
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Para projetos e arquiteturas complexas em 3 fases"
-              >
-                Planejamento
-              </button>
-              <button
-                type="button"
-                onClick={() => setExecutionMode('agent')}
-                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
-                  executionMode === 'agent'
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Orquestração autônoma de tarefas sequenciais"
-              >
-                Agente
-              </button>
-            </div>
-          </div>
-
+        <form onSubmit={handleSubmit} className="mx-auto max-w-3xl pointer-events-auto">
           {/* Image Thumbnail Preview before send */}
           {attachedImage && (
-            <div className="mb-2.5 flex items-center justify-between rounded-lg border border-purple-500/40 bg-[#080d22] p-2">
+            <div className="mb-2 flex items-center justify-between rounded-xl border border-purple-500/40 bg-[#080d22]/95 backdrop-blur-md p-2 shadow-lg">
               <div className="flex items-center gap-2.5">
                 <img
                   src={attachedImage.dataUrl}
                   alt="Anexo"
-                  className="h-10 w-10 rounded border border-[#1d2b4a] object-cover"
+                  className="h-10 w-10 rounded-lg border border-[#1d2b4a] object-cover"
                 />
                 <div>
                   <div className="text-xs font-semibold text-purple-200">
-                    Print de Erro / Código Anexado
+                    Print Anexado
                   </div>
                   <div className="text-[10px] text-slate-400 font-mono">
-                    {attachedImage.name} (Pronto para envio multimodal)
+                    {attachedImage.name}
                   </div>
                 </div>
               </div>
@@ -792,7 +700,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 type="button"
                 onClick={() => setAttachedImage(null)}
                 aria-label="Remover imagem"
-                className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-rose-400"
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-rose-400"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -801,9 +709,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
           {/* Optional attached code area */}
           {showCodeInput && (
-            <div className="mb-3 rounded-lg border border-[#1d2b4a] bg-[#050814] p-2.5">
+            <div className="mb-2 rounded-xl border border-[#1d2b4a] bg-[#050814]/95 backdrop-blur-md p-2.5 shadow-lg">
               <div className="mb-1 flex items-center justify-between text-[11px] text-slate-400">
-                <span className="font-mono">Anexo de Código Fonte:</span>
+                <span className="font-mono text-cyan-300">Anexo de Código Fonte:</span>
                 <button
                   type="button"
                   onClick={() => setShowCodeInput(false)}
@@ -822,7 +730,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           )}
 
-          <div className="flex flex-col rounded-xl border border-[#1a2642] bg-[#090f23] p-3 shadow-xl focus-within:border-cyan-500/50">
+          {/* Gemini-Style Rounded Input Card */}
+          <div className="flex flex-col rounded-2xl border border-[#1c2a4a] bg-[#080e22]/95 backdrop-blur-md p-3 shadow-2xl shadow-black/60 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/30 transition-all">
             <textarea
               ref={textareaRef}
               value={inputText}
@@ -831,29 +740,29 @@ export const ChatView: React.FC<ChatViewProps> = ({
               onPaste={handlePaste}
               placeholder={
                 executionMode === 'planning'
-                  ? 'Descreva a funcionalidade ou sistema que deseja planejar com o Alex (ex: "Quero criar um módulo de autenticação com JWT")...'
-                  : 'Pergunte ao Alex ou cole um print com Ctrl+V (ou arraste a imagem aqui)...'
+                  ? 'Descreva a arquitetura ou sistema para planejar em fases com o Alex...'
+                  : 'Pergunte algo ou solicite código (Ctrl+V para colar prints)...'
               }
               rows={2}
-              className="w-full resize-none bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
+              className="w-full resize-none bg-transparent px-1 text-sm text-slate-100 placeholder-slate-500 focus:outline-none max-h-36"
             />
 
-            <div className="mt-2 flex items-center justify-between border-t border-[#141e35] pt-2">
-              <div className="flex items-center gap-2">
+            <div className="mt-2 flex items-center justify-between border-t border-[#141e35]/80 pt-2">
+              <div className="flex items-center gap-1.5">
                 {/* Image upload button */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs transition-colors ${
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
                     attachedImage
-                      ? 'bg-purple-500/20 text-purple-300'
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                       : 'text-slate-400 hover:bg-[#101934] hover:text-slate-200'
                   }`}
                   title="Anexar captura de tela / print de erro"
                 >
                   <ImageIcon className="h-3.5 w-3.5 text-purple-400" />
                   <span className="hidden sm:inline">
-                    {attachedImage ? 'Print Anexado' : 'Anexar Print (ou Ctrl+V)'}
+                    {attachedImage ? 'Print Anexado' : 'Print'}
                   </span>
                 </button>
 
@@ -861,36 +770,39 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowCodeInput(!showCodeInput)}
-                  className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs transition-colors ${
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
                     showCodeInput
-                      ? 'bg-cyan-500/20 text-cyan-300'
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                       : 'text-slate-400 hover:bg-[#101934] hover:text-slate-200'
                   }`}
+                  title="Anexar trecho de código fonte"
                 >
                   <FileCode className="h-3.5 w-3.5 text-cyan-400" />
                   <span className="hidden sm:inline">
-                    {showCodeInput ? 'Código anexado' : 'Anexar código'}
+                    {showCodeInput ? 'Código Anexo' : 'Código'}
                   </span>
                 </button>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className="hidden text-[11px] text-slate-500 sm:inline">
+              <div className="flex items-center gap-2">
+                <span className="hidden text-[11px] text-slate-500 lg:inline">
                   Pressione <kbd className="font-mono text-slate-400">Enter</kbd> para enviar
                 </span>
 
                 <button
                   type="submit"
                   disabled={(!inputText.trim() && !attachedImage) || isLoading}
-                  className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  className={`flex h-8 sm:h-auto items-center justify-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
                     (inputText.trim() || attachedImage) && !isLoading
                       ? executionMode === 'planning'
-                        ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-500/25 hover:scale-105'
-                        : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-cyan-500/25 hover:from-blue-500 hover:to-cyan-400'
+                        ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30 hover:bg-amber-500'
+                        : 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/30 hover:bg-cyan-400'
                       : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                   }`}
                 >
-                  <span>{executionMode === 'planning' ? 'Planejar com Alex' : 'Enviar'}</span>
+                  <span className="hidden sm:inline">
+                    {executionMode === 'planning' ? 'Planejar' : 'Enviar'}
+                  </span>
                   {executionMode === 'planning' ? (
                     <Compass className="h-3.5 w-3.5" />
                   ) : (
