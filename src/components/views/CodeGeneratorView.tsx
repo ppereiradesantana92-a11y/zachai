@@ -49,6 +49,7 @@ import { CodeBlock } from '../CodeBlock';
 import {
   detectLanguageFromPrompt,
   isSimpleCodeRequest,
+  resolveExecutionMode,
 } from '../../utils/languageDetector';
 
 interface CodeGeneratorViewProps {
@@ -153,18 +154,27 @@ export const CodeGeneratorView: React.FC<CodeGeneratorViewProps> = ({
     let effectiveFramework = selectedFramework;
     const detectedLang = detectLanguageFromPrompt(prompt.trim());
     if (detectedLang.detected) {
-      if (detectedLang.name === 'HTML') {
+      const dName = detectedLang.name;
+      if (dName === 'HTML') {
         effectiveFramework = 'HTML5 + CSS3 + JavaScript Puro (Vanilla Web)';
-      } else if (detectedLang.name === 'Python') {
+      } else if (dName === 'CSS') {
+        effectiveFramework = 'HTML5 Semântico + Tailwind CSS';
+      } else if (dName === 'JavaScript') {
+        effectiveFramework = 'HTML5 + CSS3 + JavaScript Puro (Vanilla Web)';
+      } else if (dName === 'Python') {
         effectiveFramework = 'Python + FastAPI + SQLAlchemy';
+      } else if (dName === 'TypeScript') {
+        effectiveFramework = 'React 19 + Tailwind CSS + TypeScript';
+      } else {
+        effectiveFramework = `${dName} + Clean Architecture`;
       }
     }
 
-    const isSimple = isSimpleCodeRequest(prompt.trim());
-    // Se o usuário estiver no modo planejamento, mas a tarefa for simples e direta de código,
-    // não bloqueamos com planejamento desnecessário; geramos o código diretamente.
-    const effectiveMode: ExecutionMode =
-      executionMode === 'planning' && isSimple ? 'direct' : executionMode;
+    // Roteamento inteligente de modo: código simples avança direto sem planejamento
+    const effectiveMode: ExecutionMode = resolveExecutionMode(prompt.trim(), executionMode);
+    if (executionMode === 'planning' && effectiveMode === 'direct') {
+      setExecutionMode('direct');
+    }
 
     try {
       if (effectiveMode === 'agent') {

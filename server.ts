@@ -26,12 +26,23 @@ import {
   invalidatePasswordResetCode,
   getResendClient,
 } from './src/server/emailService.ts';
+import {
+  detectLanguageFromPrompt,
+  resolveExecutionMode,
+  isSimpleCodeRequest,
+  isComplexArchitecturalRequest,
+  isExplicitPlanRequest,
+  getExtensionForLanguage,
+  getCodeHighlightLang,
+} from './src/utils/languageDetector.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const portArgIndex = process.argv.indexOf('--port');
+const cliPort = portArgIndex !== -1 && process.argv[portArgIndex + 1] ? Number(process.argv[portArgIndex + 1]) : null;
+const PORT = cliPort || 3000;
 
 // Enable JSON parsing with generous limit for base64 image uploads
 app.use(express.json({ limit: '25mb' }));
@@ -732,37 +743,18 @@ app.post('/api/chat', async (req, res) => {
     const promptText = (message || '').trim();
     const promptLower = promptText.toLowerCase();
 
-    // 1. Detecção inteligente da linguagem solicitada explicitamente no prompt
-    let targetLanguage = language;
-    if (/\b(html5?|p[aá]gina html|c[oó]digo html|arquivo html|tag html|tabela html|formul[aá]rio html|bot[aã]o html)\b/i.test(promptText)) {
-      targetLanguage = 'HTML';
-    } else if (/\b(css3?|estilo css|folha de estilo)\b/i.test(promptText)) {
-      targetLanguage = 'CSS';
-    } else if (/\b(javascript|vanilla js|js puro)\b/i.test(promptText)) {
-      targetLanguage = 'JavaScript';
-    } else if (/\b(python3?|script python|c[oó]digo python|django|flask|fastapi)\b/i.test(promptText)) {
-      targetLanguage = 'Python';
-    } else if (/\b(sql|query sql|consulta sql|postgresql|mysql|sqlite)\b/i.test(promptText)) {
-      targetLanguage = 'SQL';
-    } else if (/\b(php|script php|laravel)\b/i.test(promptText)) {
-      targetLanguage = 'PHP';
-    } else if (/\b(java(?!script)|spring boot)\b/i.test(promptText)) {
-      targetLanguage = 'Java';
-    } else if (/\b(c#|csharp|\.net|dotnet)\b/i.test(promptText)) {
-      targetLanguage = 'C#';
-    } else if (/\b(golang|linguagem go)\b/i.test(promptText)) {
-      targetLanguage = 'Go';
-    } else if (/\b(rust|c[oó]digo rust)\b/i.test(promptText)) {
-      targetLanguage = 'Rust';
-    }
+    // 1. Detecção rigorosa da linguagem solicitada explicitamente no prompt
+    // A linguagem mencionada prevalece imediatamente sobre qualquer configuração padrão (incluindo TypeScript)
+    const detected = detectLanguageFromPrompt(promptText, language);
+    const targetLanguage = detected.detected ? detected.name : language;
 
-    // 2. Classificação de complexidade: tarefas simples NUNCA exigem planejamento
-    const isSimple =
-      /\b(simples|b[aá]sico|bot[aã]o|hello world|snippet|exemplo|fun[cç][aã]o|tag|card|formul[aá]rio simples)\b/i.test(promptLower) ||
-      (promptLower.length < 100 && !/\b(arquitetura|planeje|microsservi[cç]o|sistema completo|monorepo)\b/i.test(promptLower));
-
-    // O Modo Planejamento só deve ser ativado se for explicitamente solicitado E a tarefa for complexa
-    const isPlanningMode = mode === 'planning' && !isSimple;
+    // 2. Roteamento Inteligente de Modo (Modo Código Direto vs. Modo Planejamento)
+    // O Modo Código Direto é o padrão para solicitações de geração, criação ou trechos de código simples.
+    // O Modo Planejamento deve ser acionado APENAS se:
+    //  a) O usuário pedir explicitamente um plano, arquitetura ou etapa prévia; OU
+    //  b) A tarefa for comprovadamente complexa (arquitetura de sistemas inteiros, refatoração de múltiplos arquivos).
+    const effectiveMode = resolveExecutionMode(promptText, mode);
+    const isPlanningMode = effectiveMode === 'planning';
 
     const systemInstruction = `Você é o ZachAI & Alex — Engenheiro de Software Sênior e Arquiteto de Sistemas.
 Linguagem solicitada e ativa: ${targetLanguage}.
@@ -776,9 +768,9 @@ Elabore o planejamento em 3 fases:
 3. Fase 3: Roteiro Ordenado de Desenvolvimento (Checklist em etapas)
 Peça a validação do usuário antes de iniciar a codificação.`
     : `O MODO CÓDIGO DIRETO ESTÁ ATIVO.
-REGRA ABSOLUTA: Gere e entregue o código solicitado IMEDIATAMENTE em ${targetLanguage}, completo, semântico e funcional.
-NÃO exija aprovação de plano nem crie barreiras de planejamento.
-Se a linguagem for HTML, entregue estritamente código HTML/HTML5 puro e moderno (com CSS e JavaScript embutidos se necessário), sem forçar TypeScript, React ou módulos externos desnecessários.
+REGRA ABSOLUTA: Gere e entregue o código solicitado IMEDIATAMENTE no primeiro turno em ${targetLanguage}, completo, semântico e funcional.
+NÃO exija aprovação de plano, não crie barreiras de planejamento nem responda apenas com explicações teóricas sem o código.
+Se a linguagem for HTML, entregue estritamente código HTML/HTML5 puro e completo com <!DOCTYPE html> (incluindo estilos <style> e scripts <script> embutidos se necessário), sem forçar TypeScript, React ou módulos externos desnecessários.
 Respeite rigorosamente a linguagem que o usuário pediu (${targetLanguage}).
 Formate o código utilizando bloco markdown apropriado (\`\`\`${targetLanguage.toLowerCase()} ... \`\`\`).
 Forneça uma explicação concisa e prática da solução entregue.`
@@ -835,7 +827,7 @@ Forneça uma explicação concisa e prática da solução entregue.`
         });
       }
 
-      // No modo direto, se for HTML, entrega o HTML limpo e completo
+      // No modo direto, se for HTML, entrega o HTML limpo e completo imediatamente
       if (targetLanguage === 'HTML' || promptLower.includes('html')) {
         return res.json({
           content: `Aqui está o código HTML5 completo e semântico solicitado:\n\n* **Estrutura**: HTML5 padrão com viewport e charset UTF-8;\n* **Estilo**: CSS embutido com tema dark futurista e card centralizado;\n* **Interatividade**: Botão funcional com feedback de clique.`,
@@ -899,15 +891,106 @@ Forneça uma explicação concisa e prática da solução entregue.`
         });
       }
 
+      // No modo direto, se for Python
+      if (targetLanguage === 'Python' || promptLower.includes('python')) {
+        return res.json({
+          content: `Aqui está o código Python limpo e funcional solicitado:\n\n* **Padrões**: Código idiomático com docstrings e estrutura modular pronta para uso.`,
+          codeSnippet: {
+            language: 'python',
+            filename: 'main.py',
+            code: `"""
+Script em Python gerado pelo ZachAI
+"""
+
+def main():
+    print("Olá! Este é um script Python funcional gerado pelo ZachAI.")
+
+if __name__ == "__main__":
+    main()
+`,
+          },
+        });
+      }
+
+      // No modo direto, se for CSS
+      if (targetLanguage === 'CSS' || promptLower.includes('css')) {
+        return res.json({
+          content: `Aqui está a folha de estilos CSS moderna:\n\n* **Estilo**: Variáveis CSS com tema dark moderno e layout centralizado.`,
+          codeSnippet: {
+            language: 'css',
+            filename: 'styles.css',
+            code: `:root {
+  --bg-dark: #050813;
+  --card-bg: #0b1224;
+  --accent: #38bdf8;
+}
+
+body {
+  background: var(--bg-dark);
+  color: #fff;
+  font-family: sans-serif;
+  margin: 0;
+  padding: 20px;
+}
+`,
+          },
+        });
+      }
+
+      // No modo direto, se for JavaScript
+      if (targetLanguage === 'JavaScript' || promptLower.includes('javascript')) {
+        return res.json({
+          content: `Aqui está o código JavaScript solicitado:\n\n* **Padrões**: Sintaxe ES6+ moderna e pronta para testes.`,
+          codeSnippet: {
+            language: 'javascript',
+            filename: 'script.js',
+            code: `// Código JavaScript gerado pelo ZachAI
+console.log('[ZachAI] Script executado com sucesso.');
+`,
+          },
+        });
+      }
+
+      // No modo direto, se for SQL
+      if (targetLanguage === 'SQL' || promptLower.includes('sql')) {
+        return res.json({
+          content: `Aqui está a query SQL solicitada:\n\n* **Estrutura**: Sintaxe SQL padrão pronta para banco relacional.`,
+          codeSnippet: {
+            language: 'sql',
+            filename: 'query.sql',
+            code: `-- Query SQL gerada pelo ZachAI
+SELECT * FROM users ORDER BY id DESC LIMIT 10;
+`,
+          },
+        });
+      }
+
+      // No modo direto, se for JSON
+      if (targetLanguage === 'JSON' || promptLower.includes('json')) {
+        return res.json({
+          content: `Aqui está o JSON estruturado:\n\n* **Formato**: JSON padrão válido.`,
+          codeSnippet: {
+            language: 'json',
+            filename: 'data.json',
+            code: `{\n  "status": "success",\n  "message": "Gerado pelo ZachAI"\n}\n`,
+          },
+        });
+      }
+
+      const fallbackExt = getExtensionForLanguage(targetLanguage);
       return res.json({
         content: `Resposta do ZachAI (${targetLanguage}): ${message}\n\n*(Nota: O servidor backend está pronto e comunicando via rota proxy segura /api/chat. Para conectar o modelo real, configure a GEMINI_API_KEY).*`,
         codeSnippet: codeSnippet
           ? {
               language: targetLanguage.toLowerCase(),
-              filename: `exemplo.${targetLanguage.toLowerCase() === 'python' ? 'py' : targetLanguage.toLowerCase() === 'html' ? 'html' : 'ts'}`,
+              filename: `exemplo${fallbackExt}`,
               code: codeSnippet,
             }
-          : undefined,
+          : {
+              language: targetLanguage.toLowerCase(),
+              filename: `solucao${fallbackExt}`,
+              code: `// Código em ${targetLanguage} gerado pelo ZachAI\n`,
+            },
       });
     }
 
@@ -946,26 +1029,61 @@ Forneça uma explicação concisa e prática da solução entregue.`
     let extractedSnippet: { language: string; code: string; filename?: string } | undefined;
     const codeMatch = responseText.match(/```([a-zA-Z0-9#+_-]+)?\s*([\s\S]*?)```/);
     if (codeMatch) {
+      const rawCode = codeMatch[2].trim();
       const codeLang = (codeMatch[1] || targetLanguage).toLowerCase();
-      let ext = '.ts';
-      let fname = 'solucao.ts';
-      if (codeLang.includes('html')) { ext = '.html'; fname = 'index.html'; }
-      else if (codeLang.includes('css')) { ext = '.css'; fname = 'styles.css'; }
-      else if (codeLang.includes('py')) { ext = '.py'; fname = 'app.py'; }
-      else if (codeLang.includes('js')) { ext = '.js'; fname = 'script.js'; }
-      else if (codeLang.includes('sql')) { ext = '.sql'; fname = 'query.sql'; }
-      else if (codeLang.includes('json')) { ext = '.json'; fname = 'data.json'; }
-      else if (codeLang.includes('php')) { ext = '.php'; fname = 'index.php'; }
-      else if (codeLang.includes('java')) { ext = '.java'; fname = 'Main.java'; }
-      else if (codeLang.includes('cs') || codeLang.includes('csharp')) { ext = '.cs'; fname = 'Program.cs'; }
-      else if (codeLang.includes('cpp') || codeLang.includes('c++')) { ext = '.cpp'; fname = 'main.cpp'; }
-      else if (codeLang.includes('go')) { ext = '.go'; fname = 'main.go'; }
-      else if (codeLang.includes('rs') || codeLang.includes('rust')) { ext = '.rs'; fname = 'main.rs'; }
+      let ext = getExtensionForLanguage(codeLang);
+      let fname = `solucao${ext}`;
+      if (codeLang.includes('html') || rawCode.includes('<!DOCTYPE html>') || rawCode.includes('<html')) {
+        ext = '.html';
+        fname = 'index.html';
+      } else if (codeLang.includes('css')) {
+        ext = '.css';
+        fname = 'styles.css';
+      } else if (codeLang.includes('py') || codeLang.includes('python')) {
+        ext = '.py';
+        fname = 'main.py';
+      } else if (codeLang.includes('js') || codeLang.includes('javascript')) {
+        ext = '.js';
+        fname = 'script.js';
+      } else if (codeLang.includes('ts') || codeLang.includes('typescript')) {
+        ext = '.ts';
+        fname = 'index.ts';
+      } else if (codeLang.includes('sql')) {
+        ext = '.sql';
+        fname = 'query.sql';
+      } else if (codeLang.includes('json')) {
+        ext = '.json';
+        fname = 'data.json';
+      } else if (codeLang.includes('php')) {
+        ext = '.php';
+        fname = 'index.php';
+      } else if (codeLang.includes('java')) {
+        ext = '.java';
+        fname = 'Main.java';
+      } else if (codeLang.includes('cs') || codeLang.includes('csharp')) {
+        ext = '.cs';
+        fname = 'Program.cs';
+      } else if (codeLang.includes('cpp') || codeLang.includes('c++')) {
+        ext = '.cpp';
+        fname = 'main.cpp';
+      } else if (codeLang.includes('go')) {
+        ext = '.go';
+        fname = 'main.go';
+      } else if (codeLang.includes('rs') || codeLang.includes('rust')) {
+        ext = '.rs';
+        fname = 'main.rs';
+      }
 
       extractedSnippet = {
-        language: codeLang,
-        code: codeMatch[2].trim(),
+        language: (codeLang.includes('html') || rawCode.includes('<!DOCTYPE html>') || rawCode.includes('<html')) ? 'html' : codeLang,
+        code: rawCode,
         filename: fname,
+      };
+    } else if (responseText.includes('<!DOCTYPE html>') || responseText.includes('<html')) {
+      extractedSnippet = {
+        language: 'html',
+        code: responseText.trim(),
+        filename: 'index.html',
       };
     }
 

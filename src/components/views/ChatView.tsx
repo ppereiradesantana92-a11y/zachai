@@ -32,6 +32,7 @@ import { AgentPlanViewer } from '../AgentPlanViewer';
 import { ProjectMemoryModal } from '../ProjectMemoryModal';
 import { projectMemoryService } from '../../services/projectMemoryService';
 import { executeAgentSubtask } from '../../services/agentService';
+import { resolveExecutionMode } from '../../utils/languageDetector';
 
 interface ChatViewProps {
   messages: ChatMessage[];
@@ -319,14 +320,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const text = inputText.trim() || (attachedImage ? 'Analise este print e explique o erro/código.' : '');
     const snippet = showCodeInput && codeContext.trim() ? codeContext.trim() : undefined;
     const imagePayload = attachedImage || undefined;
-    const currentMode = executionMode;
+
+    // Roteamento inteligente de modo: solicitações simples de código executam imediatamente no Modo Código Direto
+    const targetMode = resolveExecutionMode(text, executionMode);
+    if (executionMode === 'planning' && targetMode === 'direct') {
+      setExecutionMode('direct');
+    }
 
     setInputText('');
     setCodeContext('');
     setShowCodeInput(false);
     setAttachedImage(null);
 
-    await onSendMessage(text, snippet, imagePayload, currentMode);
+    await onSendMessage(text, snippet, imagePayload, targetMode);
   };
 
   const handleApprovePlan = async (plan: ArchitecturePlan) => {

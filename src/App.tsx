@@ -45,6 +45,9 @@ import {
   detectLanguageFromPrompt,
   isSimpleCodeRequest,
   isComplexArchitecturalRequest,
+  resolveExecutionMode,
+  getExtensionForLanguage,
+  getCodeHighlightLang,
 } from './utils/languageDetector';
 
 export default function App() {
@@ -271,11 +274,12 @@ export default function App() {
 
     const isHtml =
       targetLang.toLowerCase() === 'html' ||
-      /\b(html5?|c[oó]digo html|arquivo html|p[aá]gina html|tag html|tabela html|formul[aá]rio html|bot[aã]o html)\b/i.test(userPrompt);
+      /\b(html5?|c[oó]digo html|arquivo html|p[aá]gina html|tag html|tabela html|formul[aá]rio html|bot[aã]o html|web vanilla)\b/i.test(userPrompt);
 
-    // Planning Mode (Architect Mode): Reservado exclusivamente para tarefas complexas.
-    // Tarefas simples NÃO exigem planejamento e avançam para a entrega direta de código.
-    if (mode === 'planning' && !isSimpleCodeRequest(userPrompt)) {
+    // Planning Mode (Architect Mode): Reservado exclusivamente para tarefas comprovadamente complexas ou pedidos explícitos de plano.
+    // Tarefas simples de código NUNCA exigem planejamento e avançam para a entrega direta de código.
+    const resolvedMode = resolveExecutionMode(userPrompt, mode);
+    if (resolvedMode === 'planning') {
       const plan: ArchitecturePlan = {
         id: `plan-${Date.now()}`,
         title: `Plano Arquitetural: ${userPrompt.slice(0, 50)}...`,
@@ -467,8 +471,199 @@ export default function App() {
       };
     }
 
-    // Category 1: Criar sites / landing page / API em React e TypeScript (quando solicitado)
-    if (!isHtml && (lower.includes('site') || lower.includes('landing') || lower.includes('dashboard') || lower.includes('api'))) {
+    // Se a linguagem solicitada for Python
+    if (targetLang.toLowerCase() === 'python' || /\b(python3?|py|script python|c[oó]digo python)\b/i.test(userPrompt)) {
+      return {
+        id: `msg-${Date.now()}`,
+        sender: 'assistant',
+        timestamp,
+        content: `Aqui está a solução completa e funcional em **Python** solicitado:\n\n* **Padrões**: Código idiomático, com tipagem (módulo typing), docstrings explicativas e tratamento de exceções;\n* **Execução**: Pronto para executar via linha de comando ou incorporar ao seu backend.`,
+        codeSnippet: {
+          language: 'python',
+          filename: 'main.py',
+          code: `"""
+Script funcional em Python gerado pelo ZachAI
+Demonstração limpa com funções puras e tratamento defensivo
+"""
+from typing import List, Dict, Any
+import sys
+
+def process_data(items: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Processa uma lista de registros estruturados e calcula métricas."""
+    if not items:
+        return {"total": 0, "status": "empty"}
+    
+    total_processed = len(items)
+    print(f"[ZachAI] Processando {total_processed} registros com sucesso.")
+    return {
+        "total": total_processed,
+        "items": items,
+        "status": "success"
+    }
+
+if __name__ == "__main__":
+    sample_data = [
+        {"id": 1, "name": "Módulo de Entrada", "active": True},
+        {"id": 2, "name": "Serviço de Processamento", "active": True},
+    ]
+    result = process_data(sample_data)
+    print(f"Resultado final: {result}")
+`,
+        },
+      };
+    }
+
+    // Se a linguagem solicitada for CSS
+    if (targetLang.toLowerCase() === 'css' || /\b(css3?|estilo css|folha de estilo)\b/i.test(userPrompt)) {
+      return {
+        id: `msg-${Date.now()}`,
+        sender: 'assistant',
+        timestamp,
+        content: `Aqui está a folha de estilos **CSS** moderna e responsiva:\n\n* **Variáveis CSS**: Paleta dark moderna com alto contraste e tokens reutilizáveis;\n* **Flexbox/Grid**: Layout responsivo com transições suaves.`,
+        codeSnippet: {
+          language: 'css',
+          filename: 'styles.css',
+          code: `:root {
+  --bg-primary: #050813;
+  --bg-card: rgba(11, 18, 36, 0.85);
+  --border-cyan: rgba(6, 182, 212, 0.3);
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent-cyan: #38bdf8;
+  --radius-md: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-cyan);
+  border-radius: var(--radius-md);
+  padding: 32px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+}
+`,
+        },
+      };
+    }
+
+    // Se a linguagem solicitada for JavaScript
+    if (targetLang.toLowerCase() === 'javascript' || /\b(javascript|vanilla js|js puro|\bjs\b)\b/i.test(userPrompt)) {
+      return {
+        id: `msg-${Date.now()}`,
+        sender: 'assistant',
+        timestamp,
+        content: `Aqui está o código **JavaScript (Vanilla)** limpo e funcional:\n\n* **Modularidade**: Funções utilitárias limpas com manipulação reativa do DOM e Promises;\n* **Resiliência**: Tratamento de exceções com try/catch e logs defensivos.`,
+        codeSnippet: {
+          language: 'javascript',
+          filename: 'script.js',
+          code: `/**
+ * Utilitário JavaScript Moderno (ES6+)
+ * Gerado pelo ZachAI
+ */
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('[ZachAI] DOM carregado e pronto para execução.');
+
+  const appState = {
+    counter: 0,
+    items: []
+  };
+
+  function updateDisplay() {
+    const el = document.getElementById('output');
+    if (el) {
+      el.textContent = \`Estado atualizado: \${appState.counter} cliques\`;
+    }
+  }
+
+  window.handleAction = function() {
+    appState.counter++;
+    updateDisplay();
+  };
+});
+`,
+        },
+      };
+    }
+
+    // Se a linguagem solicitada for SQL
+    if (targetLang.toLowerCase() === 'sql' || /\b(sql|query sql|consulta sql|postgresql|mysql)\b/i.test(userPrompt)) {
+      return {
+        id: `msg-${Date.now()}`,
+        sender: 'assistant',
+        timestamp,
+        content: `Aqui está a estrutura e query **SQL** otimizada:\n\n* **DDL & DML**: Criação de tabelas com chaves primárias, índices de performance e consultas otimizadas.`,
+        codeSnippet: {
+          language: 'sql',
+          filename: 'query.sql',
+          code: `-- Schema de Banco de Dados Relacional - ZachAI
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+-- Exemplo de consulta com ordenação e paginação
+SELECT id, name, email, created_at
+FROM users
+ORDER BY created_at DESC
+LIMIT 20;
+`,
+        },
+      };
+    }
+
+    // Se a linguagem solicitada for JSON
+    if (targetLang.toLowerCase() === 'json' || /\b(json|arquivo json|payload json)\b/i.test(userPrompt)) {
+      return {
+        id: `msg-${Date.now()}`,
+        sender: 'assistant',
+        timestamp,
+        content: `Aqui está a estrutura de dados **JSON** semântica e válida:\n\n* **Padronização**: Formatação estrita com tipagem consistente para APIs e configurações.`,
+        codeSnippet: {
+          language: 'json',
+          filename: 'data.json',
+          code: `{
+  "apiVersion": "1.0.0",
+  "name": "ZachAI Payload",
+  "status": "success",
+  "data": {
+    "totalRecords": 3,
+    "items": [
+      { "id": 1, "title": "Módulo Front-end", "completed": true },
+      { "id": 2, "title": "Serviço de Autenticação", "completed": true },
+      { "id": 3, "title": "Banco de Dados e Índices", "completed": false }
+    ]
+  }
+}
+`,
+        },
+      };
+    }
+
+    // Category 1: Criar sites / landing page / API em React e TypeScript (somente se TypeScript for a linguagem)
+    if (targetLang.toLowerCase() === 'typescript' && (lower.includes('site') || lower.includes('landing') || lower.includes('dashboard') || lower.includes('api'))) {
       return {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
@@ -513,70 +708,62 @@ export function ModernHero() {
 
     // Category 2: Explicar código / hooks / arquitetura
     if (lower.includes('expli') || lower.includes('debounce') || lower.includes('useeffect') || lower.includes('solid')) {
+      const ext = getExtensionForLanguage(targetLang);
+      const codeLang = getCodeHighlightLang(targetLang);
       return {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `Excelente pergunta técnica! Vamos desmembrar esse conceito para facilitar a implementação e evitar armadilhas em produção.\n\n* **Conceito Chave**: Evitar execuções redundantes ou re-renderizações cíclicas enquanto garantimos a integridade do estado;\n* **Armadilha Frequente**: Não limpar timers ou event listeners no cleanup do \`useEffect\`;\n* **Padrão Recomendado**: Isolar a lógica em um custom hook reutilizável com tipagem genérica (\`<T>\`).`,
+        content: `Excelente pergunta técnica! Vamos desmembrar esse conceito para facilitar a implementação em **${targetLang}**.\n\n* **Conceito Chave**: Evitar execuções redundantes ou bloqueios desnecessários enquanto garantimos a integridade do estado;\n* **Boas Práticas**: Isolar a lógica em funções puras ou módulos desacoplados na sintaxe de **${targetLang}**;\n* **Padrão Recomendado**: Padrões idiomáticos, legibilidade e testes fáceis.`,
         codeSnippet: {
-          language: 'typescript',
-          filename: 'src/utils/engineeringHelper.ts',
-          code: `/**
- * Demonstração de execução controlada e assíncrona
- */
-export async function executeWithSafety<T>(
-  task: () => Promise<T>,
-  fallbackValue: T
-): Promise<T> {
-  try {
-    return await task();
-  } catch (error) {
-    console.warn('[ZachAI Safety Guard] Falha interceptada com segurança:', error);
-    return fallbackValue;
-  }
-}`,
+          language: codeLang,
+          filename: `exemplo${ext}`,
+          code: targetLang.toLowerCase() === 'python'
+            ? `def execute_with_safety(task_fn, fallback_value):\n    """Execução defensiva com tratamento de exceções em Python."""\n    try:\n        return task_fn()\n    except Exception as err:\n        print(f"[ZachAI Guard] Erro capturado: {err}")\n        return fallback_value\n`
+            : targetLang.toLowerCase() === 'javascript'
+            ? `export async function executeWithSafety(task, fallbackValue) {\n  try {\n    return await task();\n  } catch (error) {\n    console.warn('[ZachAI Safety Guard] Falha interceptada:', error);\n    return fallbackValue;\n  }\n}\n`
+            : `export async function executeWithSafety<T>(task: () => Promise<T>, fallbackValue: T): Promise<T> {\n  try {\n    return await task();\n  } catch (error) {\n    console.warn('[ZachAI Safety Guard] Falha interceptada:', error);\n    return fallbackValue;\n  }\n}\n`,
         },
       };
     }
 
     // Category 3: Corrigir erros / TypeError / CORS / loops
     if (lower.includes('erro') || lower.includes('corrig') || lower.includes('cors') || lower.includes('undefined') || lower.includes('depur')) {
+      const ext = getExtensionForLanguage(targetLang);
+      const codeLang = getCodeHighlightLang(targetLang);
       return {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp,
-        content: `Diagnóstico realizado com sucesso pelo motor ZachAI!\n\n**Causa Raiz Identificada:**\nO erro decorre de uma referência nula no ciclo de renderização inicial ou de restrições de mesma origem (Same-Origin Policy).\n\n**Correção Aplicada:**\n1. Foi adicionado encadeamento opcional (\`?.\`) e operador de coalescência nula (\`??\`);\n2. Criamos uma barreira de segurança defensiva com estado de carregamento explícito.`,
+        content: `Diagnóstico realizado com sucesso pelo motor ZachAI para **${targetLang}**!\n\n**Causa Raiz Identificada:**\nO erro decorre de uma referência nula no ciclo de inicialização ou de restrições de chamada assíncrona.\n\n**Correção Aplicada:**\n1. Foi adicionada validação prévia de tipo e existência de dados;\n2. Criamos uma barreira defensiva com fallback seguro.`,
         codeSnippet: {
-          language: 'typescript',
-          filename: 'src/fixes/safePatch.ts',
-          code: `// Patch de Correção Defensivo
-export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
-  // Evita 'Cannot read properties of undefined (reading map)'
-  if (!Array.isArray(inputData) || inputData.length === 0) {
-    return [];
-  }
-  return inputData.filter(Boolean);
-}`,
+          language: codeLang,
+          filename: `safePatch${ext}`,
+          code: targetLang.toLowerCase() === 'python'
+            ? `def safe_transformer(data_list):\n    """Filtra valores nulos com segurança em Python."""\n    if not isinstance(data_list, list):\n        return []\n    return [item for item in data_list if item is not None]\n`
+            : `export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {\n  if (!Array.isArray(inputData) || inputData.length === 0) {\n    return [];\n  }\n  return inputData.filter(Boolean);\n}\n`,
         },
       };
     }
 
-    // Default general technical response
+    // Default general technical response - respeita estritamente a linguagem targetLang
+    const ext = getExtensionForLanguage(targetLang);
+    const codeLang = getCodeHighlightLang(targetLang);
     return {
       id: `msg-${Date.now()}`,
       sender: 'assistant',
       timestamp,
-      content: `Recebi sua solicitação para **${selectedLanguage}**: "${userPrompt}".\n\nComo assistente de engenharia de software, recomendo adotar padrões idiomáticos da tecnologia selecionada (${selectedLanguage}), estruturando tipos e modularização de forma limpa.\n\n*(Lembrete: Conforme os requisitos da Etapa 1, esta interface demonstra a formatação, fluxo de mensagens e blocos de código com destaque de sintaxe. Na próxima fase, as respostas serão alimentadas diretamente pelo modelo Gemini conectado via proxy seguro no backend).*`,
+      content: `Aqui está o código solicitado em **${targetLang}**:\n\n* **Linguagem**: ${targetLang} (Padrões idiomáticos e modernos);\n* **Estrutura**: Código limpo, pronto para teste e execução imediata.`,
       codeSnippet: attachedCode
         ? {
-            language: selectedLanguage.toLowerCase(),
-            filename: `referencia.${selectedLanguage.toLowerCase()}`,
-            code: `// Código em ${selectedLanguage} analisado pelo ZachAI:\n${attachedCode}`,
+            language: codeLang,
+            filename: `referencia${ext}`,
+            code: attachedCode,
           }
         : {
-            language: selectedLanguage.toLowerCase(),
-            filename: `exemplo.${selectedLanguage.toLowerCase()}`,
-            code: `// Exemplo estruturado em ${selectedLanguage} gerado pelo ZachAI\n// Pronto para teste e expansão no seu projeto.`,
+            language: codeLang,
+            filename: `solucao${ext}`,
+            code: `// Código limpo e funcional em ${targetLang} gerado pelo ZachAI\n// Solicitação: ${userPrompt}\n`,
           },
     };
   };
@@ -610,20 +797,17 @@ export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
     setLastSubmittedPrompt({ text: content, code: codeSnippet });
     setLastSubmittedImage(imageAttachment || null);
 
-    // 1. Detecção automática da linguagem explícita citada no prompt
+    // 1. Detecção e respeito rigoroso à linguagem solicitada (prevalece imediatamente sobre qualquer padrão)
     const detectedLang = detectLanguageFromPrompt(content, selectedLanguage);
     const effectiveLanguage = detectedLang.detected ? detectedLang.name : selectedLanguage;
     if (detectedLang.detected && detectedLang.name !== selectedLanguage) {
       setSelectedLanguage(detectedLang.name);
     }
 
-    // 2. Classificação de complexidade & garantia do Modo Código Direto
-    const isSimple = isSimpleCodeRequest(content);
-    const isComplex = isComplexArchitecturalRequest(content);
-    // Modo Código Direto gera direto sem exigir planejamento.
-    // Modo Planejamento só é mantido se for explicitamente solicitado E a tarefa for complexa (não simples).
-    const effectiveMode: ExecutionMode =
-      mode === 'planning' && isSimple && !isComplex ? 'direct' : mode;
+    // 2. Roteamento Inteligente de Modo (Modo Código Direto vs. Modo Planejamento)
+    // O Modo Código Direto é o padrão para solicitações de geração, criação ou trechos de código simples.
+    // O Modo Planejamento só é acionado se explicitamente solicitado ou tarefa comprovadamente complexa.
+    const effectiveMode: ExecutionMode = resolveExecutionMode(content, mode);
 
     const userMessage: ChatMessage = {
       id: `msg-user-${Date.now()}`,
@@ -808,9 +992,12 @@ export function safeDataTransformer<T>(inputData: T[] | null | undefined): T[] {
     language?: string,
     imageAttachment?: { dataUrl: string; name?: string; mimeType?: string }
   ) => {
-    if (language) setSelectedLanguage(language);
+    // A linguagem mencionada explicitamente no prompt prevalece sobre a seleção padrão
+    const detected = detectLanguageFromPrompt(promptText, language || selectedLanguage);
+    const effectiveLang = detected.detected ? detected.name : (language || selectedLanguage);
+    setSelectedLanguage(effectiveLang);
     setCurrentTab('chat');
-    handleSendMessage(promptText, codeSnippet, imageAttachment);
+    handleSendMessage(promptText, codeSnippet, imageAttachment, 'direct');
   };
 
   const handleOpenSessionFromHistory = (session: ChatSession) => {
