@@ -1035,7 +1035,7 @@ export function ModernHero() {
     <div
       data-theme={settings.theme}
       data-rgb-border={settings.enableRgbBorder ? 'true' : 'false'}
-      className={`flex min-h-screen bg-[#050813] text-slate-100 relative ${activeThemeConfig.selectionClass}`}
+      className={`flex ${currentTab === 'chat' ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-[#050813] text-slate-100 relative ${activeThemeConfig.selectionClass}`}
     >
       {/* Ambient Fluid LED / RGB Border Effect: Removido completamente do DOM quando desativado */}
       {settings.enableRgbBorder ? (
@@ -1088,7 +1088,7 @@ export function ModernHero() {
       />
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col overflow-x-hidden">
+      <div className={`flex flex-1 flex-col min-h-0 ${currentTab === 'chat' ? 'h-full overflow-hidden' : 'overflow-x-hidden'}`}>
         {/* Top Header */}
         <Header
           currentTab={currentTab}
@@ -1120,7 +1120,7 @@ export function ModernHero() {
         {currentTab !== 'chat' && <IntegrationBanner onOpenSettings={() => setCurrentTab('settings')} />}
 
         {/* Dynamic Views */}
-        <main className={`flex-1 ${currentTab === 'chat' ? 'overflow-hidden flex flex-col min-h-0' : 'overflow-y-auto'}`}>
+        <main className={`flex-1 min-h-0 ${currentTab === 'chat' ? 'h-full overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>
           {currentTab === 'home' && (
             <HomeView
               onSubmitPrompt={handlePromptFromHome}

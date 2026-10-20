@@ -510,8 +510,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
       </header>
 
       {/* Messages Thread Container (Gemini-Style with Generous Bottom Padding) */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 scroll-smooth">
-        <div className="mx-auto max-w-3xl space-y-6 pb-48 sm:pb-56">
+      <div
+        className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 scroll-smooth"
+        style={{ scrollPaddingBottom: '14rem' }}
+      >
+        <div className="mx-auto max-w-3xl space-y-6 pb-20">
           {messages.map((message) => {
             const isUser = message.sender === 'user';
 
@@ -662,6 +665,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </div>
             </div>
           )}
+
+          {/* Generous bottom spacing spacer so the last message always rests comfortably above the input composer */}
+          <div className="h-44 sm:h-52 shrink-0 pointer-events-none" aria-hidden="true" />
 
           <div ref={messagesEndRef} />
         </div>
